@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "type_aka.h"
 
+
 /// <summary>
 ///     根据d8流向，生成逆流向
 ///     input array should be larger than 3*3
@@ -26,13 +27,10 @@
 /// <param name="cols">
 ///     矩阵的列数
 /// </param>
-/// /// <param name="nodata">
-///     栅格的nodata值
-/// </param>
 /// <returns>
 ///     逆流向矩阵
 /// </returns>
-__declspec(dllexport) unsigned char* reverse_fdir(unsigned char* fdir, int rows, int cols) {
+unsigned char* _get_re_dir(unsigned char* fdir, int rows, int cols) {
 
     uint64 cols64 = (uint64)cols;
     unsigned char nodata = 255;

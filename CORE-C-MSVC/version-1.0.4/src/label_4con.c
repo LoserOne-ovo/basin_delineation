@@ -1,9 +1,38 @@
+/*
+	Copyright: NNU (http://www.njnu.edu.cn/)
+	Author: LoserOne-ovo (https://github.com/LoserOne-ovo)
+*/
+
+
 #include <stdlib.h>
 #include <stdio.h>
 #include "label_4con.h"
 #include "type_aka.h"
 
-__declspec(dllexport) unsigned int* label_4con(unsigned char* bin_ima, int rows, int cols, unsigned int* label_num) {
+
+// 有待改进的部分
+/*
+	1. 行程扫描可以优化，不需要和上一行中的所有连通团进行比较。
+	大约可以减少一般的比较，但时间复杂度应该还是O(m*n)。
+	在每一行连通团较多的情景下，还是有优化意义的。
+	
+	2. 不需要开辟额外的空间存储等价对。可以边判断，边操作。
+	缺点是不能预知等价对数量，得预先开辟足够大的等价列表，或动态分配内存。
+
+	3. 显然，不需要solved_tags。可以只使用dissolved_tags。
+
+*/
+
+
+/// <summary>
+/// 标记二值图像的四连通区域
+/// </summary>
+/// <param name="bin_ima">二维矩阵flatten成一维矩阵</param>
+/// <param name="rows">二维矩阵行数</param>
+/// <param name="cols">二维矩阵列数</param>
+/// <param name="label_num">返回四连通区域标记数量</param>
+/// <returns>四连域标记结果</returns>
+unsigned int* _label_4con(unsigned char* bin_ima, int rows, int cols, unsigned int* label_num) {
 
     // reference: https://www.cnblogs.com/ronny/p/img_aly_01.html
 
@@ -196,25 +225,25 @@ __declspec(dllexport) unsigned int* label_4con(unsigned char* bin_ima, int rows,
         }
         unsigned int loc_tag, pre_tag, backup = 0;
 
-        // 遍历等价对列表
-        for (uint i = 0; i < ecList->length; i++) {
+// 遍历等价对列表
+for (uint i = 0; i < ecList->length; i++) {
 
-            loc_tag = ecList->List[i].max_tag;
-            pre_tag = ecList->List[i].min_tag;
+	loc_tag = ecList->List[i].max_tag;
+	pre_tag = ecList->List[i].min_tag;
 
-            while ((dissolved_tags[loc_tag] != 0) && (dissolved_tags[loc_tag] != pre_tag)) {
-                // 生成新的等价对
-                backup = dissolved_tags[loc_tag];
-                dissolved_tags[loc_tag] = min_uint(dissolved_tags[loc_tag], pre_tag);
-                loc_tag = max_uint(backup, pre_tag);
-                pre_tag = min_uint(backup, pre_tag);
-            }
+	while ((dissolved_tags[loc_tag] != 0) && (dissolved_tags[loc_tag] != pre_tag)) {
+		// 生成新的等价对
+		backup = dissolved_tags[loc_tag];
+		dissolved_tags[loc_tag] = min_uint(dissolved_tags[loc_tag], pre_tag);
+		loc_tag = max_uint(backup, pre_tag);
+		pre_tag = min_uint(backup, pre_tag);
+	}
 
-            // 无法寻找到新的等价对
-            if (dissolved_tags[loc_tag] == 0) {
-                dissolved_tags[loc_tag] = pre_tag;
-            }
-        }
+	// 无法寻找到新的等价对
+	if (dissolved_tags[loc_tag] == 0) {
+		dissolved_tags[loc_tag] = pre_tag;
+	}
+}
 
         // 此时，有多少为0的数，就有多少个根节点
         // 先一次循环，找出有多少个根节点，分别编号

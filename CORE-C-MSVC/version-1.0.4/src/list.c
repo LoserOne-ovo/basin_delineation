@@ -3,11 +3,29 @@
 #include "list.h"
 
 
-int u16_List_append(u16_List* src, unsigned short elem, unsigned int d_size) {
+int u8_List_append(u8_List* src, unsigned char elem) {
 
 	if (src->length == src->alloc_length) {
+		unsigned long long newsize = src->alloc_length + src->batch_size;
+		unsigned char* newList = (unsigned char*)realloc(src->List, newsize * sizeof(unsigned char));
+		if (newList == NULL) {
+			fprintf(stderr, "Memory reallocation failed in line %d of list.c \r\n", __LINE__);
+			exit(-1);
+		}
+		src->List = newList;
+		src->alloc_length = newsize;
+	}
+	src->List[src->length] = elem;
+	src->length++;
 
-		unsigned int newsize = src->alloc_length + d_size;
+	return 1;
+}
+
+
+int u16_List_append(u16_List* src, unsigned short elem) {
+
+	if (src->length == src->alloc_length) {
+		unsigned long long newsize = src->alloc_length + src->batch_size;
 		unsigned short* newList = (unsigned short*)realloc(src->List, newsize * sizeof(unsigned short));
 		if (newList == NULL) {
 			fprintf(stderr, "Memory reallocation failed in line %d of list.c \r\n", __LINE__);
@@ -16,7 +34,6 @@ int u16_List_append(u16_List* src, unsigned short elem, unsigned int d_size) {
 		src->List = newList;
 		src->alloc_length = newsize;
 	}
-
 	src->List[src->length] = elem;
 	src->length++;
 
@@ -24,11 +41,10 @@ int u16_List_append(u16_List* src, unsigned short elem, unsigned int d_size) {
 }
 
 
-int u64_List_append(u64_List* src, unsigned long long elem, unsigned int d_size) {
+int u64_List_append(u64_List* src, unsigned long long elem) {
 
 	if (src->length == src->alloc_length) {
-
-		unsigned int newsize = src->alloc_length + d_size;
+		unsigned long long newsize = src->alloc_length + src->batch_size;
 		unsigned long long* newList = (unsigned long long*)realloc(src->List, newsize * sizeof(unsigned long long));
 		if (newList == NULL) {
 			fprintf(stderr, "Memory reallocation failed in line %d of list.c \r\n", __LINE__);
@@ -37,7 +53,6 @@ int u64_List_append(u64_List* src, unsigned long long elem, unsigned int d_size)
 		src->List = newList;
 		src->alloc_length = newsize;
 	}
-
 	src->List[src->length] = elem;
 	src->length++;
 
@@ -48,6 +63,17 @@ int u64_List_append(u64_List* src, unsigned long long elem, unsigned int d_size)
 int check_in_u16_List(unsigned short val, u16_List* src) {
 
 	for (unsigned int i = 0; i < src->length;i++) {
+		if (val == src->List[i]) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+int check_in_u8_List(unsigned char val, u8_List* src) {
+
+	for (unsigned int i = 0; i < src->length; i++) {
 		if (val == src->List[i]) {
 			return 1;
 		}
