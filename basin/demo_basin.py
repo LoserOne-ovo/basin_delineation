@@ -32,8 +32,10 @@ def process_scene_1(record, root, threshold, stat_db_path, sql_statement):
         divide_basin_1or2(work_folder, code, basin_type, sink_num, threshold, stat_db_path, sql_statement)
     elif basin_type == 3:
         divide_basin_3(work_folder, code, basin_type, sink_num, threshold, stat_db_path, sql_statement)
-    elif basin_type == 4 or basin_type == 5:
+    elif basin_type == 4:
         divide_basin_4(work_folder, code, sink_num, island_num, threshold, stat_db_path, sql_statement)
+    elif basin_type == 5:
+        divide_basin_5(work_folder, code, sink_num, island_num, threshold, stat_db_path, sql_statement)
     else:
         raise ValueError("Unknown basin type %d " % basin_type)
 
@@ -104,7 +106,10 @@ def main_wd(root, stat_db_path, level, threshold):
     # p_pool.close()
     # p_pool.join()
 
-    for i in range(divide_num):
+    # for i in range(divide_num):
+        # process_scene_1(basin_list[i], root, threshold, stat_db_path, stat_db_insert_sql)
+        
+    for i in range(level_divisible_num):
         process_scene_1(basin_list[i], root, threshold, stat_db_path, stat_db_insert_sql)
 
     ############################
@@ -138,7 +143,7 @@ if __name__ == "__main__":
     top_code = '7'
 
     minimum_ths = 10
-    process_level = 1
+    process_level = 2
 
     time_start = time.time()
     main_wd(root_folder, stat_db, process_level, minimum_ths)

@@ -95,7 +95,7 @@ def basin_preprocess(root, code, min_river_ths, stat_db, stat_sql, basin_type=4,
     label_res, label_num = label(all_edge)
 
     # 认为汇流累积量最大值所处的连通部分为大陆边界，其余为岛屿边界
-    max_upa_index = (outlets[0][0], outlet[0][1])
+    max_upa_index = np.argmax(upa_arr)
     mainland_label = label_res[max_upa_index]
     mainland_edge = label_res == mainland_label
 
@@ -181,7 +181,7 @@ def basin_preprocess(root, code, min_river_ths, stat_db, stat_sql, basin_type=4,
         gc_cor = (center_j, center_j, center_i, center_i)
         nearest_j, nearest_i = list(sp_idx.nearest(gc_cor, objects="raw"))[0]
         nearest_dst = distance_2d((center_j, center_i), (nearest_j, nearest_i)) - radius
-        is_type = 1 if nearest_dst < 100 and temp_area < 1 else 2
+        is_type = 1 if nearest_dst < 10 and temp_area < 0.1 else 2
 
         ins_val = (is_id, float(center_i), float(center_j), int(sample_i), int(sample_j), float(radius),
                    float(temp_area),float(ref_area), int(min_row), int(min_col), int(max_row), int(max_col),

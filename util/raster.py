@@ -18,16 +18,14 @@ def read_tif_files(folder, code, sink_num):
     ds = gdal.Open(os.path.join(folder, code + '_upa.tif'))
     upa_arr = ds.ReadAsArray()
 
-    elv_arr = None
-    # 如果存在内流区，还需要读取高程数据
-    if sink_num > 1:
-        ds = gdal.Open(os.path.join(folder, code + '_elv.tif'))
-        elv_arr = ds.ReadAsArray()
+    # 读取高程数据
+    ds = gdal.Open(os.path.join(folder, code + '_elv.tif'))
+    elv_arr = ds.ReadAsArray()
 
     return dir_arr, upa_arr, elv_arr, geotransform, proj
 
 
-def array2tif(out_path, array, geotransform, proj, nd_value, dtype, opt=None):
+def array2tif(out_path, array, geotransform, proj, nd_value, dtype, opt=cm_tif_opt):
     """
     output an np.ndarray into a .tif file
     :param out_path:        out_put path of .tif file

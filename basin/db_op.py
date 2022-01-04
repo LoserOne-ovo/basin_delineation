@@ -229,7 +229,7 @@ def get_divisible_basins(db_path, level_table):
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("select count(*), sum(total_area) from %s where divisible = 1" % level_table)
+    cursor.execute("select count(*), sum(divide_area) from %s where divisible = 1" % level_table)
     cur_num, cur_total_area = cursor.fetchone()
 
     sub_mean_area = cur_total_area / (3 * cur_num)
@@ -281,7 +281,7 @@ def get_outlet_1(db_path, sink_num):
         cursor.execute("select * from sink_bottoms order by area desc;")
         sinks = cursor.fetchall()
     else:
-        sinks = None
+        sinks = []
     conn.close()
 
     return (outlet_ridx, outlet_cidx), area, sinks
@@ -293,7 +293,7 @@ def get_outlet_4(db_path, all_sink_num, all_island_num):
     cursor = conn.cursor()
 
     # 先查询四个主要外流区
-    cursor.execute("select ridx, cidx, area from main_outlets order by area desc limit 4;")
+    cursor.execute("select * from main_outlets order by area desc;")
     outlets = cursor.fetchall()
     outlets_num = len(outlets)
 
@@ -310,7 +310,7 @@ def get_outlet_4(db_path, all_sink_num, all_island_num):
             i_sinks = None
     else:
         sink_num = i_sink_num = 0
-        sinks = i_sinks = None
+        sinks = i_sinks = []
 
     # 查询归属于大陆的岛屿和其他岛屿
     if all_island_num > 0:
@@ -322,12 +322,36 @@ def get_outlet_4(db_path, all_sink_num, all_island_num):
             cursor.execute("select * from islands where type = 2 order by area desc;")
             islands = cursor.fetchall()
         else:
-            islands = None
+            islands = []
     else:
         m_island_num = island_num = 0
-        m_islands = islands = None
+        m_islands = islands = []
 
     return outlets, outlets_num, sinks, sink_num, islands, island_num, m_islands, m_island_num, i_sinks, i_sink_num
+
+
+def get_outlet_5(db_path, sink_num):
+
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # 查询所有岛屿
+    cursor.execute("select * from islands where type=2 order by area desc;")
+    islands = cursor.fetchall()
+
+    # 查询所有内流区
+    if sink_num > 0:
+        cursor.execute("select * from sinks where type=2 order by area desc;")
+        sinks = cursor.fetchall()
+    else:
+        sinks = []
+
+    # 查询总面积
+    cursor.execute("select total_area from basin_property;")
+    total_area = cursor.fetchone()[0]
+
+    return total_area, islands, sinks
 
 
 ######################################
@@ -343,10 +367,6 @@ def insert_basin_stat(db_path, sql_statement, ins_value):
     conn.commit()
     conn.close()
 
-
-######################################
-#             new                #
-######################################
 
 
 

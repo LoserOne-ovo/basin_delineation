@@ -163,8 +163,6 @@ def pfafstetter(outlet_idx, basin_arr, re_dir_arr, upa_arr, sub_outlets, ths):
 
 
     rows, cols = re_dir_arr.shape
-    return_ridxs = np.zeros(shape=(10,), dtype=np.uint)
-    return_cidxs = np.zeros(shape=(10,), dtype=np.uint)
     return_num = ctypes.pointer(ctypes.c_ubyte(0))
     func = dll.pfafstetter
 
