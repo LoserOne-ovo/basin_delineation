@@ -39,11 +39,11 @@ def divide_basin_1or2(folder, code, bas_type, sink_num, threshold, stat_db_path,
         divide_1or2(outlet_idx, bas_type, dir_arr, upa_arr, elv_arr, threshold, area, sinks, sink_num)
 
     # 分割流域，并保存为新的输入
-    break_into_sub_basins(basin, dir_arr, upa_arr, elv_arr, sub_num, b_types, b_areas, b_outlets, b_envelopes,
+    result = break_into_sub_basins(basin, dir_arr, upa_arr, elv_arr, sub_num, b_types, b_areas, b_outlets, b_envelopes,
                           None, None, sink_merge_flag, other_sinks, None, None, None, None, None, None,
                           ul_offset, geotransform, proj, threshold, code, folder, stat_db_path, sql_statement)
 
-    return 1
+    return result
 
 
 def divide_1or2(outlet_idx, bas_type, dir_arr, upa_arr, elv_arr, threshold, area, sinks, sinks_num):
@@ -196,11 +196,11 @@ def divide_basin_3(folder, code, bas_type, sink_num, threshold, stat_db_path, sq
             divide_3(outlet_idx, dir_arr, elv_arr, area, sinks, sink_num, critical_count)
 
     # 分割流域，并保存为新的输入
-    break_into_sub_basins(basin, dir_arr, upa_arr, elv_arr, sub_num, b_types, b_areas, b_outlets, b_envelopes,
+    result = break_into_sub_basins(basin, dir_arr, upa_arr, elv_arr, sub_num, b_types, b_areas, b_outlets, b_envelopes,
                           None, None, sink_merge_flag, other_sinks, None, None, None, None, None, None,
                           ul_offset, geotransform, proj, threshold, code, folder, stat_db_path, sql_statement)
 
-    return 1
+    return result
 
 
 def divide_3(outlet_idx, dir_arr, elv_arr, area, sinks, sinks_num, depart_num):
@@ -289,7 +289,7 @@ def divide_3(outlet_idx, dir_arr, elv_arr, area, sinks, sinks_num, depart_num):
 
     # 计算子流域外包矩形
     get_basin_envelopes(basin, envelopes)
-
+    
     return basin, sub_num, btype_list, barea_list, sub_outlet_idxs, envelopes, sink_merge_flag, other_sinks
 
 
@@ -318,15 +318,17 @@ def divide_basin_4(folder, code, sink_num, island_num, threshold, stat_db_path, 
     basin, sub_num, b_types, b_areas, b_outlets, b_envelopes, other_outlets, outlet_merge_flag, other_sinks, \
         sink_merge_flag, m_island_merge_flag, island_merge_flag, i_sink_merge_flag = \
         divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, islands,
-                 island_num, i_sinks, i_sink_num, dir_arr, upa_arr, elv_arr)
+                 island_num, i_sinks, i_sink_num, threshold, dir_arr, upa_arr, elv_arr)
     # 裁剪流域
-    break_into_sub_basins(basin, dir_arr, upa_arr, elv_arr, sub_num, b_types, b_areas, b_outlets, b_envelopes,
+    result = break_into_sub_basins(basin, dir_arr, upa_arr, elv_arr, sub_num, b_types, b_areas, b_outlets, b_envelopes,
                           outlet_merge_flag, other_outlets, sink_merge_flag, other_sinks, i_sink_merge_flag, i_sinks, island_merge_flag, islands,
                           m_island_merge_flag, m_islands, ul_offset, geotransform, proj, threshold,
                           code, folder, stat_db_path, sql_statement)
 
+    return result
 
-def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, islands, island_num, i_sinks, i_sink_num,
+
+def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, islands, island_num, i_sinks, i_sink_num, min_threshold,
              dir_arr, upa_arr, elv_arr):
     """
 
@@ -493,7 +495,9 @@ def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, isla
 
     island_merge_flag = np.zeros((island_num,), dtype=np.uint8)
     frac = 0.02
-    size_change_threshold = rows * cols * frac
+    ref_cell_area = 0.0081 if island_num <= 0 else islands[0][7]
+    size_change_threshold = max(rows * cols * frac, min_threshold / ref_cell_area)
+    
     coded_islands_id = []
 
     # 提取大陆流域的外包矩形
@@ -516,7 +520,7 @@ def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, isla
             change_env[i, j] = calc_enve_change(envelopes[j], islands[i][8:12])
 
     # 岛屿补充编码
-    while code_idx < 11:
+    while code_idx < 11 and di_island_num < island_num:
         # 计算对流域范围改变最大的岛屿集合
         min_changes = np.min(change_env[:, 1:code_idx], axis=1)
         max_change_island = np.argmax(min_changes)
@@ -742,7 +746,7 @@ def divide_basin_5(folder, code, sink_num, island_num, threshold, stat_db_path, 
             basin, sub_num, b_types, b_areas, b_outlets, b_envelopes, other_outlets, outlet_merge_flag, other_sinks, \
                 sink_merge_flag, m_island_merge_flag, island_merge_flag, i_sink_merge_flag = \
                 divide_4(outlets, outlet_num, m_sinks, m_sink_num, m_islands, m_island_num, islands,
-                         island_num, i_sinks, i_sink_num, dir_arr, upa_arr, elv_arr)
+                         island_num, i_sinks, i_sink_num, threshold, dir_arr, upa_arr, elv_arr)
 
         # 当做岛屿集合来处理
         else:
@@ -761,12 +765,12 @@ def divide_basin_5(folder, code, sink_num, island_num, threshold, stat_db_path, 
             divide_5(islands, island_num, sinks, sink_num, threshold, dir_arr, code)
 
     # 裁剪流域
-    break_into_sub_basins(basin, dir_arr, upa_arr, elv_arr, sub_num, b_types, b_areas, b_outlets, b_envelopes,
+    result = break_into_sub_basins(basin, dir_arr, upa_arr, elv_arr, sub_num, b_types, b_areas, b_outlets, b_envelopes,
                           outlet_merge_flag, other_outlets, sink_merge_flag, sinks, i_sink_merge_flag, i_sinks,
                           island_merge_flag, islands, m_island_merge_flag, m_islands, ul_offset, geotransform,
                           proj, threshold, code, folder, stat_db_path, sql_statement)
 
-    return 1
+    return result
 
 
 def divide_5(islands, island_num, sinks, sink_num, min_threshold, dir_arr, code):
@@ -818,7 +822,9 @@ def divide_5(islands, island_num, sinks, sink_num, min_threshold, dir_arr, code)
 
     # 计算每个岛屿对已编码岛屿外包矩形的改变
     frac = 0.02
-    size_change_threshold = rows * cols * frac
+    ref_cell_area = islands[0][7]
+    size_change_threshold = max(min_threshold / ref_cell_area, rows * cols * frac)
+    
     change_env = np.zeros((island_num, 11), dtype=np.int64)
     for i in range(island_num):
         for j in range(1, code_idx):
@@ -947,9 +953,9 @@ def prepare_4(dir_arr, upa_arr, islands, island_num, sinks, sink_num, threshold)
         nearest_j, nearest_i = list(sp_idx.nearest(gc_cor, objects="raw"))[0]
         nearest_dst = distance_2d((temp[2], temp[1]), (nearest_j, nearest_i)) - temp[5]
         is_type = 1 if nearest_dst < 10 and temp[6] < 0.1 else 2
-        temp[12] = nearest_dst
-        temp[13] = nearest_i
-        temp[14] = nearest_j
+        temp[12] = float(nearest_dst)
+        temp[13] = int(nearest_i)
+        temp[14] = int(nearest_j)
         temp[15] = is_type
         other_islands.append(tuple(temp))
     
@@ -1013,6 +1019,9 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
     :return:
     """
 
+    ins_val_list = []
+
+
     #########################################
     #           如果没有划分出子流域            #
     #########################################
@@ -1026,23 +1035,15 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
         clone_basin(path, pre_code, folder, cur_code)
 
         # 创建与汇总数据库的连接
-        stat_conn = sqlite3.connect(stat_db_path)
-        stat_cursor = stat_conn.cursor()
         ins_val = (cur_code, int(sub_types[1]), float(sub_areas[1]), -1, -1, -1, 0)
-        stat_cursor.execute(stat_sqline, ins_val)
-        stat_conn.commit()
-        stat_conn.close()
-
-        return 0
+        ins_val_list.append(ins_val)
+        
+        return ins_val_list
 
     #########################################
     #             如果划分了子流域             #
     #########################################
 
-
-    # 创建与汇总数据库的连接
-    stat_conn = sqlite3.connect(stat_db_path)
-    stat_cursor = stat_conn.cursor()
 
     # 准备下一层级流域划分需要的输入
     for i in range(1, sub_num + 1):
@@ -1261,9 +1262,9 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
 
             divide_area = total_area
             # 判断是否可以继续划分子流域
-            if sub_outlet_num < 1 and merge_sink_num < 1 and merge_island_num < 1:
+            if sub_outlet_num < 1 :
                 divisibility = 0
-
+            
 
         ###############################
         #        5 岛屿和岛屿内流区      #
@@ -1331,10 +1332,7 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
         conn.close()
 
         ins_val = (cur_code, bas_type, total_area, divide_area, total_sink_num, total_island_num, divisibility)
-        stat_cursor.execute(stat_sqline, ins_val)
+        ins_val_list.append(ins_val)
         
-
-    stat_conn.commit()
-    stat_conn.close()
-
-    return 1
+    return ins_val_list
+    

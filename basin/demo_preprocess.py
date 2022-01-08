@@ -96,7 +96,7 @@ def basin_preprocess(root, code, min_river_ths, stat_db, stat_sql, basin_type=4,
 
     # 认为汇流累积量最大值所处的连通部分为大陆边界，其余为岛屿边界
     max_upa_index = np.argmax(upa_arr)
-    mainland_label = label_res[max_upa_index]
+    mainland_label = label_res[np.unravel_index(max_upa_index, arr_shape)]
     mainland_edge = label_res == mainland_label
 
     out_drainage_area = np.sum(upa_arr[mainland_edge == 1])
@@ -132,7 +132,8 @@ def basin_preprocess(root, code, min_river_ths, stat_db, stat_sql, basin_type=4,
     island_label_res, island_num = label(island_edge)
     print("Island num: %d" % island_num)
     island_center, island_sample, island_radius, island_area, island_ref_area, island_envelope = island_statistic(island_label_res, island_num, dir_arr, upa_arr)
-
+    if island_num > 0:
+        create_is_table(conn)
 
     #############################
     #     检查有没有岛屿内流区      #

@@ -235,7 +235,7 @@ def get_divisible_basins(db_path, level_table):
     sub_mean_area = cur_total_area / (3 * cur_num)
     divide_num = math.ceil(math.ceil(cur_total_area / sub_mean_area - cur_num) / 8)
 
-    cursor.execute("select code, type, total_area, sink_num, island_num from %s where divisible = 1 order by divide_area desc" % level_table)
+    cursor.execute("select code, type, total_area, divide_area, sink_num, island_num from %s where divisible = 1 order by divide_area desc" % level_table)
     basin_list = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -247,7 +247,7 @@ def get_indivisible_basins(db_path, level_table):
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("select code, total_area, merge_sink_num, type from %s where divisible = 0" % level_table)
+    cursor.execute("select code, type, total_area, divide_area, sink_num, island_num from %s where divisible = 0" % level_table)
     basin_list = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -361,14 +361,20 @@ def get_outlet_5(db_path, sink_num):
 
 def insert_basin_stat(db_path, sql_statement, ins_value):
 
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=10)
     cursor = conn.cursor()
     cursor.execute(sql_statement, ins_value)
     conn.commit()
     conn.close()
 
 
-
+def insert_basin_stat_many(db_path, sql_statement, ins_value_list):
+    
+    conn = sqlite3.connect(db_path, timeout=60)
+    cursor = conn.cursor()
+    cursor.executemany(sql_statement, ins_value_list)
+    conn.commit()
+    conn.close()
 
 
 

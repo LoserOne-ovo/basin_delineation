@@ -81,10 +81,9 @@ def clone_shp(folder, code, sub_folder, sub_code):
         raise IOError("missing shapefile in path %s!" % folder)
 
 
-def copy_not_divided_basin(root_folder, code, sink_num):
-    work_folder = root_folder
-    for c in code:
-        work_folder = os.path.join(work_folder, c)
+def copy_not_divided_basin(root_folder, code):
+    
+    work_folder = get_basin_folder(root_folder, code)
     target_folder = os.path.join(work_folder, '0')
     new_code = code + '0'
     if not os.path.exists(target_folder):
@@ -93,8 +92,11 @@ def copy_not_divided_basin(root_folder, code, sink_num):
     # 复制tif文件
     src_dir = os.path.join(work_folder, code + '_dir.tif')
     src_upa = os.path.join(work_folder, code + '_upa.tif')
+    src_elv = os.path.join(work_folder, code + '_elv.tif')
     tgt_dir = os.path.join(target_folder, new_code + '_dir.tif')
     tgt_upa = os.path.join(target_folder, new_code + '_upa.tif')
+    tgt_elv = os.path.join(target_folder, new_code + '_elv.tif')
+    
     if os.path.exists(src_dir):
         shutil.copy2(src_dir, tgt_dir)
     else:
@@ -103,14 +105,11 @@ def copy_not_divided_basin(root_folder, code, sink_num):
         shutil.copy2(src_upa, tgt_upa)
     else:
         raise IOError("Could not find input file %s!" % src_upa)
+    if os.path.exists(src_elv):
+        shutil.copy2(src_elv, tgt_elv)
+    else:
+        raise IOError("Could not find input file %s!" % src_elv)
 
-    if sink_num > 1:
-        src_elv = os.path.join(work_folder, code + '_elv.tif')
-        tgt_elv = os.path.join(target_folder, new_code + '_elv.tif')
-        if os.path.exists(src_elv):
-            shutil.copy2(src_elv, tgt_elv)
-        else:
-            raise IOError("Could not find input file %s!" % src_elv)
 
     # 复制数据库文件
     src_db = os.path.join(work_folder, code + '.db')

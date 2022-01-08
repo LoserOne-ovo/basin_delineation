@@ -231,8 +231,8 @@ def island_statistic(island_label, island_num, dir_arr, upa_arr):
     island_area = np.zeros(shape=(island_num,), dtype=np.float32)
     island_ref_area = np.zeros(shape=(island_num,), dtype=np.float32)
     island_envelope = np.zeros(shape=(island_num, 4), dtype=np.int32)
-    island_envelope[:, 2] = rows
-    island_envelope[:, 3] = cols
+    island_envelope[:, 0] = rows
+    island_envelope[:, 1] = cols
 
     func(island_label, island_num, island_center, island_sample, island_radius, island_area, island_ref_area,
          island_envelope, dir_arr, upa_arr, rows, cols)
