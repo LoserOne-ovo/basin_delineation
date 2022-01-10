@@ -66,6 +66,7 @@ def basin_preprocess(root, code, min_river_ths, stat_db, stat_sql, basin_type=4,
 
     # 初始化一些参数
     arr_shape = dir_arr.shape
+    print(arr_shape)
     total_area = 0.0
     out_drainage_area = 0.0
     sb_id = 1
@@ -97,14 +98,16 @@ def basin_preprocess(root, code, min_river_ths, stat_db, stat_sql, basin_type=4,
     # 认为汇流累积量最大值所处的连通部分为大陆边界，其余为岛屿边界
     max_upa_index = np.argmax(upa_arr)
     mainland_label = label_res[np.unravel_index(max_upa_index, arr_shape)]
-    mainland_edge = label_res == mainland_label
-
-    out_drainage_area = np.sum(upa_arr[mainland_edge == 1])
+    mainland_edge = (label_res == mainland_label)
+    del label_res
+    gc.collect()
+    
+    out_drainage_area = np.sum(upa_arr[mainland_edge])
     total_area = out_drainage_area
 
     sp_idx = index.Index(interleaved=False)
     # 提取大陆边界上的主要外流区
-    idx_list = np.argwhere(mainland_edge == 1)
+    idx_list = np.argwhere(mainland_edge)
     for loc_i, loc_j in idx_list:
         # 插入到R树中
         cor = (loc_j + 0.5, loc_j + 0.5, loc_i + 0.5, loc_i + 0.5)
@@ -134,6 +137,9 @@ def basin_preprocess(root, code, min_river_ths, stat_db, stat_sql, basin_type=4,
     island_center, island_sample, island_radius, island_area, island_ref_area, island_envelope = island_statistic(island_label_res, island_num, dir_arr, upa_arr)
     if island_num > 0:
         create_is_table(conn)
+
+    del island_edge, island_label_res
+    gc.collect()
 
     #############################
     #     检查有没有岛屿内流区      #

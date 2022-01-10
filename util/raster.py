@@ -19,8 +19,12 @@ def read_tif_files(folder, code, sink_num):
     upa_arr = ds.ReadAsArray()
 
     # 读取高程数据
-    ds = gdal.Open(os.path.join(folder, code + '_elv.tif'))
-    elv_arr = ds.ReadAsArray()
+    # 读取高程数据
+    if sink_num > 0:
+        ds = gdal.Open(os.path.join(folder, code + '_elv.tif'))
+        elv_arr = ds.ReadAsArray()
+    else:
+        elv_arr = None
 
     return dir_arr, upa_arr, elv_arr, geotransform, proj
 

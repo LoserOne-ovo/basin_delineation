@@ -32,7 +32,7 @@ def divide_basin_1or2(folder, code, bas_type, sink_num, threshold, stat_db_path,
     ul_offset = get_ul_offset(db_path)
 
     # 读取栅格数据
-    dir_arr, upa_arr, elv_arr, geotransform, proj = read_tif_files(folder, code, sink_num)
+    dir_arr, upa_arr, elv_arr, geotransform, proj = read_tif_files(folder, code, 1)
 
     # 流域划分
     basin, sub_num, b_types, b_areas, b_outlets, b_envelopes, sink_merge_flag, other_sinks = \
@@ -184,7 +184,7 @@ def divide_basin_3(folder, code, bas_type, sink_num, threshold, stat_db_path, sq
                 break
 
     # 读取栅格数据
-    dir_arr, upa_arr, elv_arr, geotransform, proj = read_tif_files(folder, code, sink_num)
+    dir_arr, upa_arr, elv_arr, geotransform, proj = read_tif_files(folder, code, 1)
 
     # 如果足够大的内流区的数量小于2，则把内流区当成一个完整流域处理
     if critical_count < 2:
@@ -313,7 +313,7 @@ def divide_basin_4(folder, code, sink_num, island_num, threshold, stat_db_path, 
     ul_offset = get_ul_offset(db_path)
 
     # 读取栅格数据
-    dir_arr, upa_arr, elv_arr, geotransform, proj = read_tif_files(folder, code, sink_num)
+    dir_arr, upa_arr, elv_arr, geotransform, proj = read_tif_files(folder, code, 1)
     # 流域划分
     basin, sub_num, b_types, b_areas, b_outlets, b_envelopes, other_outlets, outlet_merge_flag, other_sinks, \
         sink_merge_flag, m_island_merge_flag, island_merge_flag, i_sink_merge_flag = \
@@ -729,7 +729,7 @@ def divide_basin_5(folder, code, sink_num, island_num, threshold, stat_db_path, 
     ul_offset = get_ul_offset(db_path)
 
     # 读取栅格数据
-    dir_arr, upa_arr, elv_arr, geotransform, proj = read_tif_files(folder, code, sink_num)
+    dir_arr, upa_arr, elv_arr, geotransform, proj = read_tif_files(folder, code, 1)
 
     # 判断有没有需要打成大陆看待的大型岛屿
     first_island_area = islands[0][6]
