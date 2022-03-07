@@ -22,7 +22,7 @@ def calc_reverse_dir(dir_arr):
     func = dll.calc_reverse_fdir
 
     func.argtypes = [np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, shape=(rows, cols), flags='C_CONTIGUOUS'),
-                     ctypes.c_int, ctypes.c_int]
+                     ctypes.c_int32, ctypes.c_int32]
     func.restype = ctypes.POINTER(ctypes.c_ubyte)
     ptr = func(dir_arr, rows, cols)
 
@@ -45,15 +45,15 @@ def label(bin_image):
     label_4con = dll.label_4con
 
     label_4con.argtypes = [np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, shape=bin_image.shape, flags='C_CONTIGUOUS'),
-                           ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_uint)]
-    label_4con.restype = ctypes.POINTER(ctypes.c_uint)
+                           ctypes.c_int32, ctypes.c_int32, ctypes.POINTER(ctypes.c_uint32)]
+    label_4con.restype = ctypes.POINTER(ctypes.c_uint32)
 
-    label_num = ctypes.pointer(ctypes.c_uint(0))
+    label_num = ctypes.pointer(ctypes.c_uint32(0))
     ptr = label_4con(bin_image, rows, cols, label_num)
 
-    arr_type = ctypes.c_uint * (rows * cols)
+    arr_type = ctypes.c_uint32 * (rows * cols)
     address = ctypes.addressof(ptr.contents)
-    result = np.frombuffer(arr_type.from_address(address), dtype=np.uint)
+    result = np.frombuffer(arr_type.from_address(address), dtype=np.uint32)
     result = result.reshape((rows, cols))
     return result, label_num.contents.value
 
@@ -163,7 +163,6 @@ def pfafstetter(outlet_idx, basin_arr, re_dir_arr, upa_arr, sub_outlets, ths):
 
 
     rows, cols = re_dir_arr.shape
-    return_num = ctypes.pointer(ctypes.c_ubyte(0))
     func = dll.pfafstetter
 
     func.argtypes = [ctypes.c_int32, ctypes.c_int32,
@@ -192,7 +191,7 @@ def paint_up_uint8(idx_arr, colors, re_dir_arr, basin_arr):
                      np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, shape=(rows, cols), flags='C_CONTIGUOUS'),
                      np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, shape=(rows, cols), flags='C_CONTIGUOUS'),
                      ctypes.c_int32, ctypes.c_int32]
-    func.restype = ctypes.c_int
+    func.restype = ctypes.c_int32
 
     res = func(idx_arr, colors, idx_num, compress_rate, basin_arr, re_dir_arr, rows, cols)
 

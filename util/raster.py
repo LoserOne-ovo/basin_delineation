@@ -20,7 +20,7 @@ def read_tif_files(folder, code, sink_num):
 
     elv_arr = None
     # 如果存在内流区，还需要读取高程数据
-    if sink_num > 1:
+    if sink_num > 0:
         ds = gdal.Open(os.path.join(folder, code + '_elv.tif'))
         elv_arr = ds.ReadAsArray()
 
