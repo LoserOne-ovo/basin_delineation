@@ -27,7 +27,7 @@ def read_tif_files(folder, code, sink_num):
     return dir_arr, upa_arr, elv_arr, geotransform, proj
 
 
-def array2tif(out_path, array, geotransform, proj, nd_value, dtype, opt=None):
+def array2tif(out_path, array, geotransform, proj, nd_value, dtype, opt=cm_tif_opt):
     """
     output an np.ndarray into a .tif file
     :param out_path:        out_put path of .tif file
