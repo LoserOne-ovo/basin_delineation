@@ -46,7 +46,7 @@ def correct_lake_network_int32_c(lake_arr, dir_arr, re_dir_arr, upa_arr, river_t
     """
 
     rows, cols = lake_arr.shape
-    func = dll.correct_lake_stream_1
+    func = dll.correct_lake_network
 
     func.argtypes = [np.ctypeslib.ndpointer(dtype=np.int32, ndim=2, flags='C_CONTIGUOUS'),
                      np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, flags='C_CONTIGUOUS'),
@@ -71,22 +71,6 @@ def paint_lake_hillslope_int32_c(lake_arr, max_lake_id, re_dir_arr, upa_arr, riv
     func.restype = ctypes.c_int32
 
     res = func(lake_arr, max_lake_id, re_dir_arr, upa_arr, river_ths, rows, cols)
-
-
-def paint_lake_hillslope_2_int32_c(lake_arr, max_lake_id, dir_arr, re_dir_arr, upa_arr, river_ths):
-
-    rows, cols = lake_arr.shape
-    func = dll.paint_lake_hillslope_2_int32
-
-    func.argtypes = [np.ctypeslib.ndpointer(dtype=np.int32, ndim=2, shape=(rows, cols), flags='C_CONTIGUOUS'),
-                     ctypes.c_int32,
-                     np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, shape=(rows, cols), flags='C_CONTIGUOUS'),
-                     np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, shape=(rows, cols), flags='C_CONTIGUOUS'),
-                     np.ctypeslib.ndpointer(dtype=np.float32, ndim=2, shape=(rows, cols), flags='C_CONTIGUOUS'),
-                     ctypes.c_float, ctypes.c_int32, ctypes.c_int32]
-    func.restype = ctypes.c_int32
-
-    res = func(lake_arr, max_lake_id, dir_arr, re_dir_arr, upa_arr, river_ths, rows, cols)
 
 
 def paint_lake_whole_upper_catchment_int32_c(lake_arr, lake_id, re_dir_arr, result_arr):

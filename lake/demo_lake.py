@@ -1,8 +1,5 @@
-import os
-import sys
-import time
 import numpy as np
-from db_op import get_filter_lake_info, initialize_alter_db, create_lake_table, insert_many_lake_id
+from db_op import get_filter_lake_info, initialize_alter_db
 from lake_slope import main_lake_per_task
 
 
@@ -43,7 +40,7 @@ river_thre_dict = {
 }
 
 
-def filter_lake(level, lake_db, alter_db):
+def filter_lake(level, lake_db):
     """
     根据当前层级的湖泊阈值，筛选出湖泊，并将在要同一个流域内处理的湖泊，
     以 流域-湖泊列表 形式， 返回一个字典
@@ -100,64 +97,39 @@ def filter_lake(level, lake_db, alter_db):
         if flag is False:
             basin_lake_dict[loc_basin] = [lake_id]
 
-
-    lake_table = "lake_level_%d" % level
-    create_lake_table(alter_db, lake_table)
-    ins_sql = "INSERT INTO %s VALUES (?)" % lake_table
-    ins_val = [(code, ) for code in basin_lake_dict.keys()]
-    insert_many_lake_id(alter_db, ins_sql, ins_val)
-
     return basin_lake_dict
 
 
 def main_lake(level, lake_db, lake_folder, basin_root, basin_stat_db, alter_db, out_folder):
 
-    bl_dict = filter_lake(level, lake_db, alter_db)
+    bl_dict = filter_lake(level, lake_db)
     river_ths = river_thre_dict[level]
 
     table_name = "level_%d" % level
-    basin_table_name = "basin_level_%d" % level
-    initialize_alter_db(alter_db, basin_stat_db, table_name, basin_table_name)
-    update_sql = "UPDATE %s SET status=? where code=?" % basin_table_name
+    initialize_alter_db(alter_db, basin_stat_db, table_name)
+    update_sql = "UPDATE %s SET alter=? where code=?" % table_name
 
-    if len(bl_dict) == 0:
-        print("There is no lake with area larger than the threshold %.1f of level %d!")
-    
-    else:
-        for key, value in bl_dict.items():
-            print(key, " -- ", value)
-            main_lake_per_task(key, value, river_ths, level, lake_folder, basin_root, 
-                               alter_db, update_sql, basin_stat_db, out_folder)
+    for key, value in bl_dict.items():
+
+        print(key, " -- ", value)
+        main_lake_per_task(key, value, river_ths, level, lake_folder, basin_root,
+                           alter_db, update_sql, basin_stat_db, out_folder)
 
 
 if __name__ == "__main__":
 
 
-    basin_project_root = r"E:\qyf\data\Australia_multiprocess_test"
-    basin_project_db = r"E:\qyf\data\Australia_multiprocess_test\statistic.db"
+    basin_project_root = r""
+    basin_project_db = r""
 
-    lake_shp_folder = r"E:\qyf\data\Australia_multiprocess_test\lake\single_lake"
-    lake_db = r"E:\qyf\data\Australia_multiprocess_test\lake\lake_location.db"
-    alter_db = r"E:\qyf\data\Australia_multiprocess_test\lake\alter.db"
+    lake_shp_folder = r""
+    lake_db_path = r"F:\demo\Lakes\au\lake_location.db"
 
-    out_folder = r"E:\qyf\data\Australia_multiprocess_test\lake\alter_basin"
-    
-    max_level = 10
-    p_level = int(sys.argv[1])
-    
-    if p_level < 4 or p_level > max_level:
-        print("level must be between 4 and %d" % max_level)
-        exit(-1)
-    
-    out_shp_folder = os.path.join(out_folder, "level_%2d" % p_level)
-    if not os.path.exists(out_shp_folder):
-        os.mkdir(out_shp_folder)
-    
-    print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
-    time_start = time.time()
-    main_lake(p_level, lake_db, lake_shp_folder, basin_project_root, basin_project_db, alter_db, out_shp_folder)
-    time_end = time.time()
-    print("total time consumption: %.2f s!" % (time_end - time_start))
+    out_shp_folder = r""
+    p_level = 8
+
+    main_lake(p_level, lake_db_path,lake_shp_folder, basin_project_root, basin_project_db, out_shp_folder)
+
 
 
 

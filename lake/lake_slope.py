@@ -69,34 +69,34 @@ def build_lake_arr(basin_code, lake_list, folder, lake_folder):
 
     # 如果只有一个湖泊，直接用源湖泊shp做Rasterize
     if lake_num == 1:
-        lake_shp = os.path.join(lake_folder, "%d.shp" % lake_list[0])
+        lake_shp = os.path.join(lake_folder, lake_list[0] + ".shp")
         lake_ds = ogr.Open(lake_shp)
         layer = lake_ds.GetLayer()
-        gdal.RasterizeLayer(grid_ds, [1], layer, options=["ATTRIBUTE=Hylak_id"])
+        gdal.RasterizeLayer(grid_ds, [1], layer, options=["ATTRIBUTE='lake_id'"])
         lake_arr = grid_ds.ReadAsArray()
         lake_ds.Destroy()
 
     # 如果有多个湖泊，则在内存中创建一个新的shp
     else:
-        lake_shp = os.path.join(lake_folder, "%d.shp" % lake_list[0])
+        lake_shp = os.path.join(lake_folder, lake_list[0] + ".shp")
         single_lake_ds = ogr.Open(lake_shp)
         single_lake_layer = single_lake_ds.GetLayer()
         srs = single_lake_layer.GetSpatialRef()
 
         mem_vector_driver = ogr.GetDriverByName("MEMORY")
-        lake_ds = mem_vector_driver.CreateDataSource(basin_code + "_lake")
+        lake_ds = mem_vector_driver.CreateDataSource(basin_code + "_lake", srs=srs, geom_type=ogr.wkbPolygon)
         layer = lake_ds.CopyLayer(single_lake_layer, "lakes")
         single_lake_ds.Destroy()
 
         for i in range(1, lake_num):
-            lake_shp = os.path.join(lake_folder, "%d.shp" % lake_list[i])
+            lake_shp = os.path.join(lake_folder, lake_list[0] + ".shp")
             single_lake_ds = ogr.Open(lake_shp)
             single_lake_layer = single_lake_ds.GetLayer()
             for feature in single_lake_layer:
                 layer.CreateFeature(feature)
             single_lake_ds.Destroy()
 
-        gdal.RasterizeLayer(grid_ds, [1], layer, options=["ATTRIBUTE=Hylak_id"])
+        gdal.RasterizeLayer(grid_ds, [1], layer, options=["ATTRIBUTE='lake_id'"])
         lake_arr = grid_ds.ReadAsArray()
         lake_ds.Destroy()
 
@@ -120,8 +120,7 @@ def paint_lake_slope(lake_arr, max_lake_id, code, folder, river_threshold):
     # 修正湖泊河网
     correct_lake_network_int32_c(lake_arr, dir_arr, re_dir_arr, upa_arr, river_threshold)
     # 绘制湖泊坡面
-    # paint_lake_hillslope_int32_c(lake_arr, max_lake_id, re_dir_arr, upa_arr, river_threshold)
-    paint_lake_hillslope_2_int32_c(lake_arr, max_lake_id, dir_arr, re_dir_arr, upa_arr, river_threshold)
+    paint_lake_hillslope_int32_c(lake_arr, max_lake_id, re_dir_arr, upa_arr, river_threshold)
 
     # 保存栅格文件
     # out_folder = r""
@@ -154,7 +153,7 @@ def rebuild_shp_same_level(lake_arr, geo_trans, proj, basin_code, lake_list, max
     lake_arr[lake_arr == 0] = -9999
     build_lake_shp(lake_arr, basin_code, lake_list, max_lake_id, geo_trans, proj, out_folder)
 
-    return [(upd_status, basin_code)]
+    return (basin_code, upd_status)
 
 
 def rebuild_shp_high_level(lake_arr, geo_trans, proj, basin_code, lake_list, max_lake_id,
@@ -202,7 +201,7 @@ def rebuild_shp_high_level(lake_arr, geo_trans, proj, basin_code, lake_list, max
         sub_rows, sub_cols = sub_dir_arr.shape
         sub_basin_arr = lake_arr[ref_y: ref_y + sub_rows, ref_x: ref_x + sub_cols].copy()
         sub_mask = sub_dir_arr != 247
-        sub_basin_arr[~sub_mask] = -9999
+        sub_basin_arr[~sub_dir_arr] = -9999
 
         """
             判断在流域范围内是否有0值像元：
@@ -217,9 +216,9 @@ def rebuild_shp_high_level(lake_arr, geo_trans, proj, basin_code, lake_list, max
             # 去除湖泊、湖泊坡面的部分, 然后矢量化
             sub_basin_arr[sub_basin_arr != 0] = -9999
             build_basin_shp(sub_basin_arr, sub_basin_code, sub_geo_trans, sub_proj, out_folder)
-            upd_val.append((1, sub_basin_code))
+            upd_val.append((sub_basin_code, 1))
         elif zero_num == 0:
-            upd_val.append((2, sub_basin_code))
+            upd_val.append((sub_basin_code, 2))
         else:
             pass
 
@@ -285,9 +284,9 @@ def build_lake_shp(lake_arr, basin_code, lake_list, max_lake_id, geo_trans, proj
             geom_type = geom.GetGeometryType()
             if geom_type == 6:
                 for sub_geom in geom:
-                    lake_slope_geometry.AddGeometry(sub_geom)
+                    lake_geometry.AddGeometry(sub_geom)
             elif geom_type == 3:
-                lake_slope_geometry.AddGeometry(geom)
+                lake_geometry.AddGeometry(geom)
             else:
                 raise RuntimeError("Unsupported Geometry Type %d!" % geom_type)
 

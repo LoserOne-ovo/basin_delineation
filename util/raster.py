@@ -1,9 +1,23 @@
 from osgeo import gdal, ogr, osr
 import os
+import math
 import numpy as np
 
 
 cm_tif_opt = ["COMPRESS=DEFLATE", "NUM_THREADS=8", "BIGTIFF=IF_SAFER"]
+dir_nodata = 247
+upa_nodata = -9999
+lev_nodata = -9999
+
+
+class OType:
+    Byte = 1
+    U16 = 2
+    I16 = 3
+    U32 = 4
+    I32 = 5
+    F32 = 6
+    F64 = 7
 
 
 def read_tif_files(folder, code, sink_num):
@@ -68,6 +82,7 @@ def raster2shp(tif_path, shp_path):
     dst_layer.CreateField(fd)
 
     gdal.Polygonize(src_band, mask_band, dst_layer, 0)
+    shp_ds.Release()
 
 
 def raster2shp_mem(shp_path, array, geotransform, proj, nd_value, dtype):
@@ -114,7 +129,6 @@ def raster2vector_mem(array, geotransform, proj, nd_value, dtype):
     return mem_vector_ds
 
 
-
 def mask_whole_basin(tif_path):
 
     ds = gdal.Open(tif_path)
@@ -155,3 +169,28 @@ def read_single_tif(tif_path):
     tif_arr = ds.ReadAsArray()
 
     return tif_arr, geotransform, proj
+
+
+def cor2idx(lon, lat, gt):
+    """
+
+    :param lon:
+    :param lat:
+    :param gt:
+    :return:
+    """
+
+    return (math.floor((lat-gt[3])/gt[5]),
+            math.floor((lon-gt[0])/gt[1]))
+
+
+def cor2idx_list(cor_list, geotrans):
+    """
+
+    :param cor_list:
+    :param geotrans:
+    :return:
+    """
+
+    return [cor2idx(lon, lat, geotrans) for lon,lat in cor_list]
+

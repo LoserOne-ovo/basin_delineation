@@ -1,19 +1,20 @@
-import numpy as np
+import os
 import ctypes
 import platform
+import numpy as np
 
 
 if platform.system() == "Windows":
-    dll = ctypes.WinDLL("ws_dln106.dll")
+    dll = ctypes.WinDLL(os.path.join(os.path.split(os.path.abspath(__file__))[0], "ws_dln106.dll"))
 elif platform.system() == "Linux":
-    dll = ctypes.CDLL("ws_dln106.so.64")
+    dll = ctypes.CDLL(os.path.join(os.path.split(os.path.abspath(__file__))[0], "ws_dln106.so.64"))
 else:
     raise RuntimeError("Unsupported platform %s" % platform.system())
 
 
 def calc_reverse_dir(dir_arr):
     """
-    Call C dll to calculate the reverse d8 flow direction
+    Call C to calculate the reverse d8 flow direction
     :param dir_arr: d8 flow direction numpy array
     :return: reverse d8 flow direction numpy array
     """
@@ -81,7 +82,7 @@ def update_island_label(island_label, island_paint_flag, t_island_num):
     """
 
     :param island_label:
-    :param island_num:
+    :param t_island_num:
     :param island_paint_flag:
     :return:
     """
@@ -239,9 +240,30 @@ def island_statistic(island_label, island_num, dir_arr, upa_arr):
     return island_center, island_sample, island_radius, island_area, island_ref_area, island_envelope
 
 
+def calc_single_pixel_area(re_dir_arr, upa_arr):
+    """
 
+    :param re_dir_arr:
+    :param upa_arr:
+    :return:
+    """
 
+    rows, cols = re_dir_arr.shape
+    func = dll.calc_single_pixel_upa
 
+    func.argtypes = [np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, shape=(rows,cols), flags='C_CONTIGUOUS'),
+                     np.ctypeslib.ndpointer(dtype=np.float32, ndim=2, shape=(rows,cols), flags='C_CONTIGUOUS'),
+                     ctypes.c_int32, ctypes.c_int32]
+    func.restype = ctypes.POINTER(ctypes.c_float)
+
+    ptr = func(re_dir_arr, upa_arr, rows, cols)
+
+    arr_type = ctypes.c_float * (rows * cols)
+    address = ctypes.addressof(ptr.contents)
+    result = np.frombuffer(arr_type.from_address(address), dtype=np.float32)
+    result = result.reshape((rows, cols))
+
+    return result
 
 
 

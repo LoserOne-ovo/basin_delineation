@@ -25,8 +25,8 @@ def create_loc_table(db_path):
         (lake_id INTEGER NOT NULL,
         lake_area REAL NOT NULL,
         contain_lv INTEGER,
-        lv_1 CHAR(1),
-        lv_2 CHAR(2),
+        lv_1 CHAR(1)
+        lv_2 CHAR(2),,
         lv_3 CHAR(3),
         lv_4 CHAR(4),
         lv_5 CHAR(5),
@@ -45,7 +45,7 @@ def create_loc_table(db_path):
     db_conn.close()
 
 
-def initialize_alter_db(db_path, stat_db_path, table_name, basin_table_name):
+def initialize_alter_db(db_path, stat_db_path, table_name):
 
     conn = sqlite3.connect(stat_db_path)
     cursor = conn.cursor()
@@ -58,10 +58,10 @@ def initialize_alter_db(db_path, stat_db_path, table_name, basin_table_name):
         return (record[0], 0)
 
     ins_val = [map_basin(rec) for rec in basin_ids]
-    create_alter_table(db_path, basin_table_name)
+    create_alter_table(db_path, table_name)
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.executemany("INSERT INTO %s VALUES (?, ?)" % basin_table_name, ins_val)
+    cursor.executemany("INSERT INTO %s VALUES (?, ?)" % table_name, ins_val)
     conn.commit()
     conn.close()
 
@@ -81,27 +81,7 @@ def create_alter_table(db_path, table_name):
 
     sqline = '''CREATE TABLE %s
         (code VARCHAR(15),
-        status INTEGER);''' % table_name
-    cursor.execute(sqline)
-    conn.commit()
-    conn.close()
-
-
-def create_lake_table(db_path, table_name):
-
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='%s';" % table_name)
-    res = cursor.fetchone()
-    if res[0] == 0:
-        pass
-    elif res[0] == 1:
-        cursor.execute("DROP TABLE %s;" % table_name)
-    else:
-        raise Exception("wrong number of table %s in the database %s" % (table_name, db_path))
-
-    sqline = '''CREATE TABLE %s
-        (code VARCHAR(15));''' % table_name
+        alter REAL);''' % table_name
     cursor.execute(sqline)
     conn.commit()
     conn.close()
@@ -163,18 +143,10 @@ def update_many_alter_status(db_path, update_sql, update_val):
     conn.close()
 
 
-def insert_many_lake_id(db_path, insert_sql, insert_val):
+def get_alter_basin_info(alter_db, level):
 
-    conn = sqlite3.connect(db_path, timeout=30)
-    cursor = conn.cursor()
-    cursor.executemany(insert_sql, insert_val)
-    conn.commit()
-    conn.close()
-    
-
-def get_alter_basin_info(db_path, table_name):
-
-    conn = sqlite3.connect(db_path)
+    table_name = "level_%d" % level
+    conn = sqlite3.connect(alter_db)
     cursor = conn.cursor()
     cursor.execute("select * from %s;" % table_name)
     result = cursor.fetchall()
@@ -182,12 +154,12 @@ def get_alter_basin_info(db_path, table_name):
     return result
 
 
-def get_alter_lake_info(db_path, table_name):
+def get_alter_lake_info(alter_db, level):
 
-    conn = sqlite3.connect(db_path)
+    table_name = "lake_level_%d" % level
+    conn = sqlite3.connect(alter_db)
     cursor = conn.cursor()
     cursor.execute("select * from %s;" % table_name)
     result = cursor.fetchall()
 
     return result
-

@@ -49,8 +49,8 @@ def split_lake(lake_shp, out_folder):
 
 if __name__ == "__main__":
 
-    lake_shp_path = r"E:\qyf\data\Australia_multiprocess_test\lake\src_lake\au_lake_lt_2.shp"
-    out_folder_path = r"E:\qyf\data\Australia_multiprocess_test\lake\single_lake"
+    lake_shp_path = r"F:\demo\Lakes\au\au_lake_lt_2.shp"
+    out_folder_path = r"F:\demo\Lakes\au\single_lake"
     split_lake(lake_shp_path, out_folder_path)
 
 

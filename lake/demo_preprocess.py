@@ -7,6 +7,9 @@ import sqlite3
 import time
 
 
+process_num = 8
+
+
 def get_geom(shp_fn):
     """
     读取流域Geometry
@@ -111,16 +114,13 @@ def main(root, top_code, lake_shp, lake_db, max_process_num, level_limit):
 if __name__ == "__main__":
 
 
-    process_num = 8
-    
-    basin_project_root = r"E:\qyf\data\Australia_multiprocess_test"
-    lake_shp_path = r"E:\qyf\data\Australia_multiprocess_test\lake\src_lake\au_lake_lt_2.shp"
-    lake_db_path = r"E:\qyf\data\Australia_multiprocess_test\lake\lake_location.db"
+    max_level = 12
     code = "7"
-
-    max_level = 10
+    basin_shp_root = r"F:\demo\Lakes\au\shp_level"
+    lake_shp_path = r"F:\demo\Lakes\au\au_lake_lt_2.shp"
+    lake_db_path = r"F:\demo\Lakes\au\lake_location.db"
 
     time_start = time.time()
-    main(basin_project_root, code, lake_shp_path, lake_db_path, process_num, max_level)
+    main(basin_shp_root, code, lake_shp_path, lake_db_path, process_num, max_level)
     time_end = time.time()
     print("total time consumption: %.2f s!" % (time_end - time_start))

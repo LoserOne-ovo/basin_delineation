@@ -1,6 +1,5 @@
 import os
 import sys
-import time
 from osgeo import ogr, osr
 from db_op import get_alter_basin_info, get_alter_lake_info
 from file_op import get_basin_folder
@@ -25,8 +24,7 @@ def gather_shp(root, alter_db, alter_folder, level, out_folder):
     featureDefn = out_layer.GetLayerDefn()
 
     # 先读取basin要素
-    basin_table = "basin_level_%d" % level
-    basin_alter_info = get_alter_basin_info(alter_db, basin_table)
+    basin_alter_info = get_alter_basin_info(alter_db, level)
     for code, status in basin_alter_info:
 
         if status == 0:
@@ -39,7 +37,7 @@ def gather_shp(root, alter_db, alter_folder, level, out_folder):
             # 构建geometry
             geometry = ogr.Geometry(ogr.wkbMultiPolygon)
             for feature in in_layer:
-                geom = feature.GetGeometryRef()
+                geom = feature.GetGeometryRef
                 geom_type = geom.GetGeometryType()
                 if geom_type == 3:
                     geometry.AddGeometry(geom)
@@ -72,11 +70,12 @@ def gather_shp(root, alter_db, alter_folder, level, out_folder):
             # 流域全部都是湖泊和湖泊坡面
             continue
 
+
     # 再读取湖泊和湖泊坡面要素
-    lake_table = "lake_level_%d" % level
-    lake_alter_info = get_alter_lake_info(alter_db, lake_table)
+    lake_alter_info = get_alter_lake_info(alter_db, level)
     for info in lake_alter_info:
-        lake_shp = os.path.join(alter_folder, "%s_lak_alt.shp" % info[0])
+
+        lake_shp = os.path.join(alter_folder, "%d_lak_alt.shp" % info[0])
         in_ds = ogr.Open(lake_shp)
         in_layer = in_ds.GetLayer(0)
 
@@ -100,19 +99,13 @@ if __name__ == "__main__":
         print("level must be between 4 and %d" % max_level)
         exit(-1)
 
-    basin_root = r"E:\qyf\data\Australia_multiprocess_test"
-    alter_db_path = r"E:\qyf\data\Australia_multiprocess_test\lake\alter.db"
-    alter_root_folder = r"E:\qyf\data\Australia_multiprocess_test\lake\alter_basin"
-    alter_shp_folder = os.path.join(alter_root_folder, "level_%2d" % p_level)
-    
-    result_folder = r"E:\qyf\data\Australia_multiprocess_test\lake\lake_slope"
+    basin_root = r""
+    alter_db_path = r""
+    alter_shp_folder = r""
+    result_folder = r""
 
 
-    print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
-    time_start = time.time()
-    gather_shp(basin_root, alter_db_path, alter_shp_folder, p_level, result_folder)
-    time_end = time.time()
-    print("total time consumption: %.2f s!" % (time_end - time_start))
+
 
 
 
