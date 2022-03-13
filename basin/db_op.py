@@ -359,20 +359,22 @@ def get_outlet_5(db_path, sink_num):
 ######################################
 
 
-def insert_basin_stat(db_path, sql_statement, ins_value):
+def insert_basin_stat(db_path, level, ins_value):
 
+    sql_line = "INSERT INTO level_%d VALUES(?,?,?,?,?,?,?)" % level
     conn = sqlite3.connect(db_path, timeout=10)
     cursor = conn.cursor()
-    cursor.execute(sql_statement, ins_value)
+    cursor.execute(sql_line, ins_value)
     conn.commit()
     conn.close()
 
 
-def insert_basin_stat_many(db_path, sql_statement, ins_value_list):
-    
+def insert_basin_stat_many(db_path, level, ins_value_list):
+
+    sql_line = "INSERT INTO level_%d VALUES(?,?,?,?,?,?,?)" % level
     conn = sqlite3.connect(db_path, timeout=60)
     cursor = conn.cursor()
-    cursor.executemany(sql_statement, ins_value_list)
+    cursor.executemany(sql_line, ins_value_list)
     conn.commit()
     conn.close()
 

@@ -7,7 +7,7 @@ import numpy as np
 cm_tif_opt = ["COMPRESS=DEFLATE", "NUM_THREADS=8", "BIGTIFF=IF_SAFER"]
 dir_nodata = 247
 upa_nodata = -9999
-lev_nodata = -9999
+elv_nodata = -9999
 
 
 class OType:

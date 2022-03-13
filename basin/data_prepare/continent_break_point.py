@@ -3,14 +3,14 @@ sys.path.append(r"../../")
 import argparse
 import numpy as np
 from util import raster
+from util import interface as cfunc
 from osgeo import ogr
-from basin import interface as cfunc
 
 
 def create_args():
 
     parser = argparse.ArgumentParser(description="Remove outlets in another continent.")
-    parser.add_argument("point", help="point shapefile")
+    parser.add_argument("point_shp", help="point shapefile")
     parser.add_argument("input_dir", help="input dir .tif")
     parser.add_argument("output_dir", help="output dir .tif")
 
@@ -96,7 +96,7 @@ def main(shp_fn, iDirfn, oDirfn):
     if flag is False:
         raise RuntimeError("There is some break point invalid!")
 
-
+    # 检查这些点是否符合要求
     mask_idxs = raster.cor2idx_list(mask_points, geo_trans)
     flag = True
     p = 0
@@ -138,4 +138,4 @@ def main(shp_fn, iDirfn, oDirfn):
 if __name__ == "__main__":
 
     args = create_args()
-    main(args.point, args.input_dir, args.output_dir)
+    main(args.point_shp, args.input_dir, args.output_dir)

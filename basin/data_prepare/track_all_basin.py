@@ -1,9 +1,8 @@
 import sys
-sys.path.append(r"../")
 sys.path.append(r"../../")
 import numpy as np
 from util import raster
-from basin import interface
+from util import interface as cfunc
 from osgeo import ogr
 
 
@@ -83,9 +82,9 @@ def main(bound_shp, dir_tif, out_tif):
     all_colors = np.ones(shape=(all_idxs.shape[0], ), dtype=np.uint8)
 
     # 追踪上游
-    re_dir_arr = interface.calc_reverse_dir(dir_arr)
+    re_dir_arr = cfunc.calc_reverse_dir(dir_arr)
     mask_arr = np.zeros(shape=dir_arr.shape, dtype=np.uint8)
-    interface.paint_up_uint8(paint_idxs, all_colors, re_dir_arr, mask_arr)
+    cfunc.paint_up_uint8(paint_idxs, all_colors, re_dir_arr, mask_arr)
 
     # 输出结果栅格文件
     raster.array2tif(out_tif, mask_arr, geo_trans, proj, nd_value=0, dtype=1)
@@ -94,8 +93,6 @@ def main(bound_shp, dir_tif, out_tif):
 
 
 if __name__ == "__main__":
-
-
 
 
     basin_shp = r""
