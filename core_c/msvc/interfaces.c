@@ -13,14 +13,12 @@ __declspec(dllexport) unsigned int* label_4con(unsigned char* bin_ima, int rows,
 	return _label_4con(bin_ima, rows, cols, label_num);
 }
 
-
 __declspec(dllexport) unsigned char* calc_reverse_fdir(unsigned char* fdir, int rows, int cols) {
 
 	return _get_re_dir(fdir, rows, cols);
 }
 
-
-__declspec(dllexport) unsigned char* get_basin_envelope_uint8(unsigned char* basin, int* envelopes, int rows, int cols) {
+__declspec(dllexport) int get_basin_envelope_uint8(unsigned char* basin, int* envelopes, int rows, int cols) {
 
 	return _get_basin_envelope_uint8(basin, envelopes, rows, cols);
 }
@@ -31,18 +29,16 @@ __declspec(dllexport) unsigned char* get_basin_envelope_uint8(unsigned char* bas
  *           island part            *
  ************************************/
 
-__declspec(dllexport) int island_statistic_uint32(unsigned int* island_label, unsigned int island_num, float* center, int* sample,  float* radius,
+__declspec(dllexport) int island_statistic_uint32(unsigned int* island_label, unsigned int island_num, float* center, int* sample,
 	float* area, float* ref_area, int* envelope, unsigned char* dir, float* upa, int rows, int cols) {
 
-	return _calc_island_statistics_uint32(island_label, island_num, center, sample, radius, area, ref_area, envelope, dir, upa, rows, cols);
+	return _calc_island_statistics_uint32(island_label, island_num, center, sample, area, ref_area, envelope, dir, upa, rows, cols);
 }
-
 
 __declspec(dllexport) int update_island_label_uint32(unsigned int* island_label, unsigned int* new_label, unsigned int island_num, int rows, int cols) {
 
 	return _update_island_label_uint32(island_label, island_num, new_label, rows, cols);
 }
-
 
 
 
@@ -58,7 +54,6 @@ __declspec(dllexport) int pfafstetter(int outlet_ridx, int outlet_cidx, unsigned
 
 
 
-
 /***********************************
  *           paint part            *
  ***********************************/
@@ -69,9 +64,8 @@ __declspec(dllexport) int paint_up_uint8(unsigned long long* idxs, unsigned char
 	return _paint_up_uint8(idxs, colors, idx_num, frac, basin, re_dir, rows, cols);
 }
 
-
-__declspec(dllexport) int paint_up_mosaiced_uint8(int* ridx, int* cidx, unsigned int num, double frac, unsigned char* basin, unsigned char* re_dir,
-	int rows, int cols) {
+__declspec(dllexport) int paint_up_mosaiced_uint8(int* ridx, int* cidx, unsigned int num, double frac, unsigned char* basin,
+	unsigned char* re_dir, int rows, int cols) {
 
 
 	uint64 cols64 = (uint64)cols;
@@ -100,6 +94,11 @@ __declspec(dllexport) int paint_up_mosaiced_uint8(int* ridx, int* cidx, unsigned
 	return res;
 }
 
+__declspec(dllexport) float* calc_single_pixel_upa(unsigned char* re_dir, float* upa, int rows, int cols) {
+
+	return _calc_single_pixel_upa(re_dir, upa, rows, cols);
+}
+
 
 /***********************************
  *           sink part             *
@@ -115,4 +114,90 @@ __declspec(dllexport) int dissolve_sinks_uint16(unsigned short* basin, unsigned 
 	unsigned short sink_num, int rows, int cols, double frac) {
 
 	return _dissolve_sinks_uint16(basin, re_dir, dem, sink_idxs, sink_num, rows, cols, frac);
+}
+
+
+
+/***********************************
+ *           lake part             *
+ ***********************************/
+
+ /****************************
+  *   correct lake-stream    *
+  ****************************/
+
+__declspec(dllexport) int correct_lake_stream_1(int* lake, unsigned char* dir, unsigned char* re_dir, float* upa, float ths, int rows, int cols) {
+
+	return _correct_lake_network_int32(lake, dir, re_dir, upa, ths, rows, cols);
+}
+
+__declspec(dllexport) int correct_lake_stream_2(int* lake, unsigned char* dir, unsigned char* re_dir, float* upa, float ths, int rows, int cols) {
+
+	return _correct_lake_network_2_int32(lake, dir, re_dir, upa, ths, rows, cols);
+}
+
+/****************************
+ *   paint lake hillslope   *
+ ****************************/
+
+__declspec(dllexport) int paint_lake_hillslope_int32(int* lake, int max_lake_id, unsigned char* re_dir, float* upa, float ths, int rows, int cols) {
+
+	return _paint_up_lake_hillslope_int32(lake, max_lake_id, re_dir, upa, ths, rows, cols);
+}
+
+__declspec(dllexport) int paint_lake_hillslope_2_int32(int* lake, int max_lake_id, unsigned char* dir, unsigned char* re_dir, float* upa, 
+	float ths, int rows, int cols) {
+
+	return _paint_up_lake_hillslope_2_int32(lake, max_lake_id, dir, re_dir, upa, ths, rows, cols);
+}
+
+/****************************
+ *   paint lake catchment   *
+ ****************************/
+
+__declspec(dllexport) int paint_lake_local_catchment_int32(int* lake, int lake_num, unsigned char* re_dir, int rows, int cols) {
+
+	return _paint_lake_local_catchment_int32(lake, lake_num, re_dir, rows, cols);
+}
+
+__declspec(dllexport) int paint_lake_upper_catchment(int* lake, int lake_id, int* board, unsigned char* re_dir, int rows, int cols) {
+
+	return _paint_lake_upper_catchment_int32(lake, lake_id, board, re_dir, rows, cols);
+}
+
+
+/****************************
+ *   create lake topology   *
+ ****************************/
+
+__declspec(dllexport) int mark_lake_outlet_int32(int* lake, int min_lake_id, int max_lake_id, unsigned char* dir, int rows, int cols) {
+
+	return _mark_lake_outlet_int32(lake, min_lake_id, max_lake_id, dir, rows, cols);
+}
+
+__declspec(dllexport) int* create_lake_topology(int* water, int lake_num, int* tag_array, unsigned char* dir, int rows, int cols) {
+
+	return _topology_between_lakes(water, lake_num, tag_array, dir, rows, cols);
+}
+
+__declspec(dllexport) unsigned long long* create_route_between_lake(int* lake, int lake_num, unsigned char* dir, float* upa, int rows, int cols,
+	int* re_num, unsigned long long* re_length) {
+
+	return _route_between_lake(lake, lake_num, dir, upa, rows, cols, re_num, re_length);
+}
+
+
+
+/***********************************
+ *           river part            *
+ ***********************************/
+
+__declspec(dllexport) int* define_network(unsigned char* dir, float* upa, float ths, int outlet_ridx, int outlet_cidx, int rows, int cols) {
+
+	return _dfn_stream(dir, upa, ths, outlet_ridx, outlet_cidx, rows, cols);
+}
+
+__declspec(dllexport) int paint_river_hillslope_int32(int* stream, int min_channel_id, int max_channel_id, unsigned char* dir, unsigned char* re_dir, int rows, int cols) {
+
+	return _paint_river_hillslope_int32(stream, min_channel_id, max_channel_id, dir, re_dir, rows, cols);
 }

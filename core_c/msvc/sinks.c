@@ -29,14 +29,14 @@ int _dissolve_sinks_uint16(unsigned short* basin, unsigned char* re_dir, float* 
 	// 存储每一个内流区的边界像元
 	u64_List* rim_cell = (u64_List*)calloc(sink_num, sizeof(u64_List));
 	if (rim_cell == NULL) {
-		fprintf(stderr, "memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	for (uint16 i = 0; i < sink_num; i++) {
 		rim_cell[i].batch_size = RC_SIZE;
 		rim_cell[i].List = (uint64*)calloc(RC_SIZE, sizeof(uint64));
 		if (rim_cell[i].List == NULL) {
-			fprintf(stderr, "memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+			fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 			exit(-1);
 		}
 		rim_cell[i].alloc_length = RC_SIZE;
@@ -53,7 +53,7 @@ int _dissolve_sinks_uint16(unsigned short* basin, unsigned char* re_dir, float* 
 	// 用于存储上游像元的栈
 	quene.List = (uint64*)calloc(QUENE_SIZE, sizeof(uint64));
 	if (quene.List == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	quene.alloc_length = QUENE_SIZE;
@@ -136,7 +136,7 @@ unsigned short* _inner_merge_u16(unsigned short* basin, float* elev, u64_List* r
 	// 函数的返回结果，用于存储内流区被合并到哪个流域
 	uint16* merge_flag = (uint16*)calloc(sink_num, sizeof(uint16));
 	if (merge_flag == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	
@@ -149,13 +149,13 @@ unsigned short* _inner_merge_u16(unsigned short* basin, float* elev, u64_List* r
 	// 记录当前要处理的流域编号（一个内流区可能合并到另一个内流区），用于去除非边界像元
 	u16_List* cur_basin = (u16_List*)malloc(sizeof(u16_List));
 	if (cur_basin == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	cur_basin->batch_size = CB_SIZE;
 	cur_basin->List = (uint16*)calloc(CB_SIZE, sizeof(uint16));
 	if (cur_basin->List == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	cur_basin->alloc_length = CB_SIZE;
@@ -242,12 +242,12 @@ u64_List* _remove_inner_peak_u16(u64_List* src, unsigned short* basin, u16_List*
 	register uint64 idx = 0;
 	u64_List* res = (u64_List*)malloc(sizeof(u64_List));
 	if (res == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	res->List = (uint64*)calloc(src->length, sizeof(uint64));
 	if (res->List == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	res->length = 0;
@@ -277,14 +277,14 @@ u64_List* _eL_merge_u16(u64_List* src, u64_List* ins, unsigned short* basin, u16
 	
 	u64_List* res = (u64_List*)malloc(sizeof(u64_List));
 	if (res == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	res->length = 0;
 	res->batch_size = src->batch_size;
 	res->List = (uint64*)calloc(all_length, sizeof(uint64));
 	if (res->List == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	res->alloc_length = all_length;
@@ -380,14 +380,14 @@ int _dissolve_sinks_uint8(unsigned char* basin, unsigned char* re_dir, float* de
 	// 存储每一个内流区的边界像元
 	u64_List* rim_cell = (u64_List*)calloc(sink_num, sizeof(u64_List));
 	if (rim_cell == NULL) {
-		fprintf(stderr, "memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	for (uint8 i = 0; i < sink_num; i++) {
 		rim_cell[i].batch_size = RC_SIZE;
 		rim_cell[i].List = (uint64*)calloc(RC_SIZE, sizeof(uint64));
 		if (rim_cell[i].List == NULL) {
-			fprintf(stderr, "memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+			fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 			exit(-1);
 		}
 		rim_cell[i].alloc_length = RC_SIZE;
@@ -404,7 +404,7 @@ int _dissolve_sinks_uint8(unsigned char* basin, unsigned char* re_dir, float* de
 	// 用于存储上游像元的栈
 	quene.List = (uint64*)calloc(QUENE_SIZE, sizeof(uint64));
 	if (quene.List == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	quene.alloc_length = QUENE_SIZE;
@@ -487,7 +487,7 @@ unsigned char* _inner_merge_u8(unsigned char* basin, float* elev, u64_List* rim_
 	// 函数的返回结果，用于存储内流区被合并到哪个流域
 	uint8* merge_flag = (uint8*)calloc(sink_num, sizeof(uint8));
 	if (merge_flag == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 
@@ -500,13 +500,13 @@ unsigned char* _inner_merge_u8(unsigned char* basin, float* elev, u64_List* rim_
 	// 记录当前要处理的流域编号（一个内流区可能合并到另一个内流区），用于去除非边界像元
 	u8_List* cur_basin = (u8_List*)malloc(sizeof(u8_List));
 	if (cur_basin == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	cur_basin->batch_size = CB_SIZE;
 	cur_basin->List = (uint8*)calloc(CB_SIZE, sizeof(uint8));
 	if (cur_basin->List == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	cur_basin->alloc_length = CB_SIZE;
@@ -599,12 +599,12 @@ u64_List* _remove_inner_peak_u8(u64_List* src, unsigned char* basin, u8_List* cu
 	register uint64 idx = 0;
 	u64_List* res = (u64_List*)malloc(sizeof(u64_List));
 	if (res == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	res->List = (uint64*)calloc(src->length, sizeof(uint64));
 	if (res->List == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	res->length = 0;
@@ -641,14 +641,14 @@ u64_List* _eL_merge_u8(u64_List* src, u64_List* ins, unsigned char* basin, u8_Li
 
 	u64_List* res = (u64_List*)malloc(sizeof(u64_List));
 	if (res == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	res->length = 0;
 	res->batch_size = src->batch_size;
 	res->List = (uint64*)calloc(all_length, sizeof(uint64));
 	if (res->List == NULL) {
-		fprintf(stderr, "Memory allocation failed in line %d of sinks.c \r\n", __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	res->alloc_length = all_length;

@@ -38,7 +38,7 @@ unsigned char* _get_re_dir(unsigned char* fdir, int rows, int cols) {
 
     unsigned char* re_fdir = (unsigned char*)calloc(rows * cols64, sizeof(unsigned char));
     if (re_fdir == NULL) {
-        fprintf(stderr, "memory reallocation failed!\r\n");
+        fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
         exit(-1);
     }
     for (int i = 0; i < rows; i++) {
