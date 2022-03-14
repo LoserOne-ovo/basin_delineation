@@ -256,7 +256,7 @@ def basin_preprocess_4(root, min_river_ths, level_db, code):
     island_label_res, island_num = cfunc.label(island_edge)
     print("Island num: %d" % island_num)
     # 调用C，统计岛屿的相关信息
-    island_center, island_sample, island_radius, island_area, island_ref_area, island_envelope = \
+    island_center, island_sample, island_area, island_ref_area, island_envelope = \
         cfunc.island_statistic(island_label_res, island_num, dir_arr, upa_arr)
     if island_num > 0:
         dp.create_is_table(conn)
