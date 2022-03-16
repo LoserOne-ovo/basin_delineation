@@ -1,3 +1,4 @@
+import os
 import sys
 sys.path.append(r"../../")
 import argparse
@@ -12,7 +13,6 @@ def create_args():
     parser = argparse.ArgumentParser(description="Remove outlets in another continent.")
     parser.add_argument("point_shp", help="point shapefile")
     parser.add_argument("input_dir", help="input dir .tif")
-    parser.add_argument("output_dir", help="output dir .tif")
 
     return parser.parse_args()
 
@@ -61,12 +61,11 @@ def get_point_cor(shp_fn):
     return break_point_list, mask_point_list
 
 
-def main(shp_fn, iDirfn, oDirfn):
+def main(shp_fn, iDirfn):
     """
 
     :param shp_fn:
     :param iDirfn:
-    :param oDirfn:
     :return:
     """
     # 读取流向栅格数据
@@ -132,10 +131,14 @@ def main(shp_fn, iDirfn, oDirfn):
         dir_arr[label_res == m_label] = raster.dir_nodata
 
     # 保存
+    dir_tif_name = os.path.basename(iDirfn)
+    prefix, suffix = os.path.splitext(dir_tif_name)
+    out_name = prefix + "_cb"  + suffix
+    oDirfn = os.path.join(os.path.dirname(shp_fn), out_name)
     raster.array2tif(oDirfn, dir_arr, geo_trans, proj, nd_value=raster.dir_nodata, dtype=raster.OType.Byte)
 
 
 if __name__ == "__main__":
 
     args = create_args()
-    main(args.point_shp, args.input_dir, args.output_dir)
+    main(args.point_shp, args.input_dir)

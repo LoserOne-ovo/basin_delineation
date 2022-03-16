@@ -28,7 +28,7 @@ def merge_dir(lon_t, lat_t, dir_root, out_path):
     min_lat, max_lat = lat_t
     min_lon, max_lon = lon_t
 
-    w_shape = ((max_lat - min_lat) * s_shape[0], (max_lon - min_lon) * s_shape[1])
+    w_shape = (int((max_lat - min_lat) * s_shape[0] / 5), int((max_lon - min_lon) * s_shape[1] / 5))
     merge_dir_arr = np.zeros(w_shape, dtype=np.uint8)
     bench_flag = False
     bench_geotrans = None
@@ -57,21 +57,21 @@ def merge_dir(lon_t, lat_t, dir_root, out_path):
             ul_ridx = int((max_lat - 5 - i) / 5) * s_shape[0]
             ul_cidx = int((j - min_lon) / 5) * s_shape[1]
 
-            merge_dir[ul_ridx:ul_ridx + s_shape[0], ul_cidx:ul_cidx + s_shape[1]] = dir_arr
+            merge_dir_arr[ul_ridx:(ul_ridx + s_shape[0]), ul_cidx:(ul_cidx + s_shape[1])] = dir_arr
 
     # 四条边设置为nodata
-    merge_dir[0, :] = raster.dir_nodata
-    merge_dir[-1, :] = raster.dir_nodata
-    merge_dir[:, 0] = raster.dir_nodata
-    merge_dir[:, -1] = raster.dir_nodata
+    merge_dir_arr[0, :] = raster.dir_nodata
+    merge_dir_arr[-1, :] = raster.dir_nodata
+    merge_dir_arr[:, 0] = raster.dir_nodata
+    merge_dir_arr[:, -1] = raster.dir_nodata
 
     raster.array2tif(out_path, merge_dir_arr, bench_geotrans, bench_proj, nd_value=raster.dir_nodata, dtype=1)
 
 
 if __name__ == '__main__':
 
-    dir_folder = r""
-    out_tif_fn = r""
+    dir_folder = r"E:\qyf\data\Asia\dir_mask_tiles"
+    out_tif_fn = r"E:\qyf\data\Asia\merge\Asia_mask_dir_merge.tif"
     lon_range = (55, 155)
     lat_range = (0, 60)
 

@@ -68,7 +68,7 @@ def create_args():
     # 检查汇总数据库参数
     if tgt_args[1] in ini_dict.keys():
         level_db = ini_dict[tgt_args[1]].strip()
-        if not os.path.isfile(level_db):
+        if not os.path.isdir(os.path.dirname(level_db)):
             print("The path of %s does not exist!" % tgt_args[1])
             flag = False
     else:
@@ -160,13 +160,13 @@ def calc_island_radius(area, cell_area):
 
 
 # 默认第一层级是大陆和岛屿的混合， 对应type=4
-def basin_preprocess_4(root, min_river_ths, level_db, code):
+def basin_preprocess_4(root, level_db, min_river_ths, code):
     """
     对 type=4 的第一层级流域进行处理，计算相关属性，
     使之能按照流域划分方法，被划分为若干个子流域。
     :param root: 项目的根目录
-    :param min_river_ths: 河网阈值
     :param level_db: 流域信息汇总数据库
+    :param min_river_ths: 河网阈值
     :param code: 第一层级流域编码
     :return: None
     """
@@ -231,16 +231,19 @@ def basin_preprocess_4(root, min_river_ths, level_db, code):
     ############################################
     sp_idx = index.Index(interleaved=False)
     # 提取大陆边界上的主要外流区
+    outlet_id = 1
     idx_list = np.argwhere(mainland_edge)
     for loc_i, loc_j in idx_list:
         # 插入到R树中
         cor = (loc_j + 0.5, loc_j + 0.5, loc_i + 0.5, loc_i + 0.5)
-        sp_idx.insert(mo_id, cor, obj=(loc_j, loc_i))
+        sp_idx.insert(outlet_id, cor, obj=(loc_j, loc_i))
+        outlet_id += 1
         # 统计面积
         temp_area = upa_arr[loc_i, loc_j]
         if temp_area > min_river_ths:
             # 向数据库中插入该像元信息
             cursor.execute(dp.mo_sql, (int(loc_i), int(loc_j), float(temp_area)))
+            mo_id += 1
     conn.commit()
     print("Exorheic num: %d" % (mo_id - 1))
     print("Exorheic finished at %s" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))

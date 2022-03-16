@@ -267,8 +267,7 @@ def check_bump(bump_db):
             x = bump_list[i][2]
             lon = ul_lon + (x + 0.5) * w
             lat = ul_lat + (y + 0.5) * h
-            print(lon, lat)
-            # print(num_list[i], area_list[i])
+            print(lon, lat, num_list[i], area_list[i])
 
     return bump_list, nb_loc_list
 
@@ -369,19 +368,19 @@ def resolve_bump(dir_tif, upa_tif, elv_tif, new_dir, new_upa, new_elv, bump_db):
 
 if __name__ == "__main__":
 
-    src_dir = r"E:\BaiduNetdiskDownload\Asia\4\4_dir_src.tif"
-    src_upa = r"E:\BaiduNetdiskDownload\Asia\4\4_upa_src.tif"
-    src_elv = r"E:\BaiduNetdiskDownload\Asia\4\4_elv_src.tif"
-    out_dir = r"E:\BaiduNetdiskDownload\Asia\4\4_dir.tif"
-    out_upa = r"E:\BaiduNetdiskDownload\Asia\4\4_upa.tif"
-    out_elv = r"E:\BaiduNetdiskDownload\Asia\4\4_elv.tif"
+    src_dir = r"E:\qyf\data\Asia\merge\Asia_dir.tif"
+    src_upa = r"E:\qyf\data\Asia\merge\Asia_upa.tif"
+    src_elv = r"E:\qyf\data\Asia\merge\Asia_elv.tif"
+    out_dir = r"E:\qyf\data\Asia\merge\4\4_dir.tif"
+    out_upa = r"E:\qyf\data\Asia\merge\4\4_upa.tif"
+    out_elv = r"E:\qyf\data\Asia\merge\4\4_elv.tif"
 
     river_threshold = 10
-    bump_db_path = r"E:\BaiduNetdiskDownload\Asia\4\4_bump.db"
+    bump_db_path = r"E:\qyf\data\Asia\merge\Asia_bump.db"
 
     # 先检查凸起，不运行resolve_bump
     # find_estuary_bump(src_dir, src_upa, river_threshold, bump_db_path)
     # check_bump(bump_db_path)
 
     # 确定没有问题后，再单独运行resolve_bump
-    # resolve_bump(src_dir, src_upa, src_elv, out_dir, out_upa, out_elv, bump_db_path)
+    resolve_bump(src_dir, src_upa, src_elv, out_dir, out_upa, out_elv, bump_db_path)
