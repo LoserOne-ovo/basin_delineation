@@ -163,15 +163,16 @@ def create_is_table(db_conn):
     db_conn.commit()
 
 
-def create_stat_table(db_path, level_table):
+def create_level_table(db_path, level):
 
+    table_name = "level_%d" % level
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name= '%s';" % level_table)
+    cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name= '%s';" % table_name)
     exist_flag = cursor.fetchone()[0]
     # 如果表格已经存在，删除表格
     if exist_flag > 0:
-        cursor.execute("DROP TABLE %s;" % level_table)
+        cursor.execute("DROP TABLE %s;" % table_name)
 
     sql_line = '''CREATE TABLE %s
         (code VARCHAR(15),
@@ -180,7 +181,7 @@ def create_stat_table(db_path, level_table):
         divide_area REAL,
         sink_num INTEGER,
         island_num INTEGER,
-        divisible INTEGER);''' % level_table
+        divisible INTEGER);''' % table_name
     cursor.execute(sql_line)
     conn.commit()
     conn.close()
@@ -219,23 +220,24 @@ def get_ul_offset(db_path):
     return result
 
 
-def get_divisible_basins(db_path, level_table):
+def get_divisible_basins(db_path, level):
     """
 
     :param db_path:
-    :param level_table:
+    :param level:
     :return:
     """
-
+    table_name = "level_%d" % level
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("select count(*), sum(divide_area) from %s where divisible = 1" % level_table)
+    cursor.execute("select count(*), sum(divide_area) from %s where divisible = 1" % table_name)
     cur_num, cur_total_area = cursor.fetchone()
 
     sub_mean_area = cur_total_area / (3 * cur_num)
     divide_num = math.ceil(math.ceil(cur_total_area / sub_mean_area - cur_num) / 8)
 
-    cursor.execute("select code, type, total_area, divide_area, sink_num, island_num from %s where divisible = 1 order by divide_area desc" % level_table)
+    cursor.execute("select code, type, total_area, divide_area, sink_num, island_num from %s "
+                   "where divisible = 1 order by divide_area desc" % table_name)
     basin_list = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -243,11 +245,18 @@ def get_divisible_basins(db_path, level_table):
     return basin_list, divide_num, cur_num
 
 
-def get_indivisible_basins(db_path, level_table):
+def get_indivisible_basins(db_path, level):
+    """
 
+    :param db_path:
+    :param level:
+    :return:
+    """
+    table_name = "level_%d" % level
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("select code, type, total_area, divide_area, sink_num, island_num from %s where divisible = 0" % level_table)
+    cursor.execute("select code, type, total_area, divide_area, sink_num, island_num from %s "
+                   "where divisible = 0" % table_name)
     basin_list = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -255,11 +264,17 @@ def get_indivisible_basins(db_path, level_table):
     return basin_list
 
 
-def get_level_basins(db_path, level_table):
+def get_level_basins(db_path, level):
+    """
 
+    :param db_path:
+    :param level:
+    :return:
+    """
+    table_name = "level_%d" % level
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("select code from %s;" % level_table)
+    cursor.execute("select code from %s;" % table_name)
     basin_list = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -360,9 +375,16 @@ def get_outlet_5(db_path, sink_num):
 
 
 def insert_basin_stat(db_path, level, ins_value):
+    """
 
-    sql_line = "INSERT INTO level_%d VALUES(?,?,?,?,?,?,?)" % level
-    conn = sqlite3.connect(db_path, timeout=10)
+    :param db_path:
+    :param level:
+    :param ins_value:
+    :return:
+    """
+    table_name = "level_%d" % level
+    sql_line = "INSERT INTO %s VALUES(?,?,?,?,?,?,?)" % table_name
+    conn = sqlite3.connect(db_path, timeout=20)
     cursor = conn.cursor()
     cursor.execute(sql_line, ins_value)
     conn.commit()
@@ -370,9 +392,16 @@ def insert_basin_stat(db_path, level, ins_value):
 
 
 def insert_basin_stat_many(db_path, level, ins_value_list):
+    """
 
-    sql_line = "INSERT INTO level_%d VALUES(?,?,?,?,?,?,?)" % level
-    conn = sqlite3.connect(db_path, timeout=60)
+    :param db_path:
+    :param level:
+    :param ins_value_list:
+    :return:
+    """
+    table_name = "level_%d" % level
+    sql_line = "INSERT INTO %s VALUES(?,?,?,?,?,?,?)" % table_name
+    conn = sqlite3.connect(db_path, timeout=30)
     cursor = conn.cursor()
     cursor.executemany(sql_line, ins_value_list)
     conn.commit()

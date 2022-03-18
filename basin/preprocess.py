@@ -36,7 +36,7 @@ def create_args():
     """
     parser = argparse.ArgumentParser(description="create property database for a basin at level 1.")
     parser.add_argument("config", help="configuration file")
-    parser.add_argument("top_code", help="code of level 1 basin")
+    parser.add_argument("top_code", help="code of level 1 basin", type=int, choices=range(1, 10))
     args = parser.parse_args()
 
     ini_file = args.config
@@ -89,14 +89,9 @@ def create_args():
         print("%s not found in the config file!" % tgt_args[2])
         flag = False
 
-    # 1级流域编码在1~9之间
-    t_code = args.top_code
-    if top_code not in [str(i) for i in range(1, 10)]:
-        print("The code of level 1 basin is invalid!")
-        flag = False
-
     if flag is False:
         exit(-1)
+    t_code = str(args.top_code)
 
     return p_root, level_db, min_ths, t_code
 
@@ -341,6 +336,7 @@ def basin_preprocess_4(root, level_db, min_river_ths, code):
     #        统计流域汇总属性        #
     ###############################
     ins_val = (code, 4, float(total_area), float(total_area), sb_id - 1, is_id - 1, 1)
+    dp.create_level_table(level_db, 1)
     dp.insert_basin_stat(level_db, 1, ins_val)
 
 
