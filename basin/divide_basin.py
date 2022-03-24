@@ -300,7 +300,7 @@ def divide_basin_4(folder, code, sink_num, island_num, threshold):
     :return:
     """
 
-    db_path = folder + r"\%s.db" % code
+    db_path = os.path.join(folder + code + ".db")
     # 读取流域出口信息、流域面积信息和内流区信息
     outlets, outlet_num, sinks, sink_num, islands, island_num, m_islands, m_island_num, i_sinks, i_sink_num = \
         dp.get_outlet_4(db_path, sink_num, island_num)
@@ -631,7 +631,7 @@ def sup_coding(temp_code_num, area_ths, sinks, di_sink_num, sink_num, islands, d
             return -1
         else:
             if di_sink_num < sink_num:
-                di_sink_area = sinks[di_sink_num][6]
+                di_sink_area = sinks[di_sink_num][5]
             else:
                 di_sink_area = 0.0
             if di_island_num < island_num:
@@ -758,7 +758,7 @@ def divide_basin_5(folder, code, sink_num, island_num, threshold):
 
     # 裁剪流域
     result = break_into_sub_basins(basin, dir_arr, upa_arr, elv_arr, sub_num, b_types, b_areas, b_outlets, b_envelopes,
-                                   outlet_merge_flag, other_outlets, sink_merge_flag, sinks, i_sink_merge_flag, i_sinks,
+                                   outlet_merge_flag, other_outlets, sink_merge_flag, other_sinks, i_sink_merge_flag, i_sinks,
                                    island_merge_flag, islands, m_island_merge_flag, m_islands, ul_offset, geotransform,
                                    proj, threshold, code, folder)
 
@@ -957,6 +957,8 @@ def prepare_4(dir_arr, upa_arr, islands, island_num, sinks, sink_num, threshold)
         sample_code = label_res[sinks[i][6:8]]
         if sample_code == main_island_label:
             temp = list(sinks[i])
+            temp[6] = None
+            temp[7] = None
             temp[8] = 1
             m_sinks.append(tuple(temp))
         else:
@@ -1201,7 +1203,7 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
                     temp[6] -= min_row  # 更改岛屿内流区对应岛屿样点的索引
                     temp[7] -= min_col
                     ins_val = tuple(temp)
-                    cursor.execute(dp.is_sql, ins_val)
+                    cursor.execute(dp.sb_sql, ins_val)
                 conn.commit()
 
             # 处理岛屿信息
@@ -1301,7 +1303,7 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
                     temp[6] -= min_row  # 更改岛屿内流区对应岛屿样点的索引
                     temp[7] -= min_col
                     ins_val = tuple(temp)
-                    cursor.execute(dp.is_sql, ins_val)
+                    cursor.execute(dp.sb_sql, ins_val)
                 conn.commit()
 
             divide_area = (sub_rows - 2) * (sub_cols - 2) * ref_cell_area

@@ -31,10 +31,10 @@ int get_basin_envelope_uint8(unsigned char* basin, int* envelopes, int rows, int
  *           island part            *
  ************************************/
 
-int island_statistic_uint32(unsigned int* island_label, unsigned int island_num, float* center, int* sample,  float* radius,
+int island_statistic_uint32(unsigned int* island_label, unsigned int island_num, float* center, int* sample,
 							float* area, float* ref_area, int* envelope, unsigned char* dir, float* upa, int rows, int cols) {
 
-	return _calc_island_statistics_uint32(island_label, island_num, center, sample, radius, area, ref_area, envelope, dir, upa, rows, cols);
+	return _calc_island_statistics_uint32(island_label, island_num, center, sample, area, ref_area, envelope, dir, upa, rows, cols);
 }
 
 

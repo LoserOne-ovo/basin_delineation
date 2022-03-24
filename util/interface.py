@@ -122,6 +122,33 @@ def paint_up_mosaiced_uint8(idx_arr, re_dir_arr, basin_arr):
     return res
 
 
+def paint_up_uint32(idx_arr, colors, re_dir_arr, basin_arr):
+    """
+    Labeling all upstream cells of each outlet cell with given values
+    :param idx_arr: array location indexes of outlets
+    :param colors: given value array of each outlet
+    :param re_dir_arr: reverse flow direction array
+    :param basin_arr: sub basins labelled array
+    :return:
+    """
+    rows, cols = basin_arr.shape
+    idx_num = idx_arr.shape[0]
+    compress_rate = 0.03
+    func = dll.paint_up_uint32
+
+    func.argtypes = [np.ctypeslib.ndpointer(dtype=np.uint64, ndim=1, shape=(idx_num, ), flags='C_CONTIGUOUS'),
+                     np.ctypeslib.ndpointer(dtype=np.uint32, ndim=1, shape=(idx_num, ), flags='C_CONTIGUOUS'),
+                     ctypes.c_uint32, ctypes.c_double,
+                     np.ctypeslib.ndpointer(dtype=np.uint32, ndim=2, shape=(rows, cols), flags='C_CONTIGUOUS'),
+                     np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, shape=(rows, cols), flags='C_CONTIGUOUS'),
+                     ctypes.c_int32, ctypes.c_int32]
+    func.restype = ctypes.c_int32
+
+    res = func(idx_arr, colors, idx_num, compress_rate, basin_arr, re_dir_arr, rows, cols)
+
+    return res
+
+
 def sink_merge_uint16(idx_arr, re_dir_arr, elv_arr, basin_arr):
 
     rows, cols = basin_arr.shape

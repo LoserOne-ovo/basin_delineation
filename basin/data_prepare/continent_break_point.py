@@ -102,11 +102,11 @@ def main(shp_fn, iDirfn):
     for ridx, cidx in mask_idxs:
         if ridx < 0 or ridx >= rows or cidx < 0 or cidx >= cols:
             print("Point(%.4f, %.4f) is out of the extent of the input dir .tif!"
-                  % (break_points[p][0], break_points[p][1]))
+                  % (mask_points[p][0], mask_points[p][1]))
             flag = False
         elif dir_arr[ridx, cidx] != 0:
             print("Point(%.4f, %.4f) does not locate at the coastline!"
-                  % (break_points[p][0], break_points[p][1]))
+                  % (mask_points[p][0], mask_points[p][1]))
             flag = False
         else:
             pass

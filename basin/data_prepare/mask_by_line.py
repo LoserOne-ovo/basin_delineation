@@ -1,6 +1,7 @@
 import os
 import sys
 sys.path.append(r"../../")
+import math
 import argparse
 import numpy as np
 from util import raster
@@ -50,26 +51,22 @@ def mask_above_or_below(line_shp_fn, dir_tif_fn, method=1):
 
     pre_point_loc = None
     for lon, lat in linestring:
-        # 只计算落在栅格影响范围内的点
-        if check_in_envelope(lon, lat, envelope):
-            loc_x = int((lon - ul_x) / delta_x)
-            loc_y = int((lat - ul_y) / delta_y)
-            # 如果这是第一个落在栅格影像范围内的点，那么左侧每一列的分界点都与当前落点相同
-            if pre_point_loc is None:
-                bound_line[0: loc_x] = loc_y
-            # 如果不是，则线性插值当前落点和前一个落点之间，每一列的分界点
-            else:
-                delta_height = loc_y - pre_point_loc[1]
-                delta_width = loc_x - pre_point_loc[0]
-                for i in range(pre_point_loc[0], loc_x):
-                    bound_line[i] = pre_point_loc[1] + int(((i - pre_point_loc[0]) / delta_width) * delta_height)
-            # 更新前一个落点
-            pre_point_loc = (loc_x, loc_y)
-
-    # 以最后一个落在栅格影像范围内的点为准，补足剩余的分界点
-    if pre_point_loc[0] < cols:
-        bound_line[pre_point_loc[0]:] = pre_point_loc[1]
-
+        loc_x = math.floor((lon - ul_x) / delta_x)
+        loc_y = math.floor((lat - ul_y) / delta_y)
+        if pre_point_loc is not None:
+            for j in range(pre_point_loc[0], loc_x):
+                if 0 <= j < cols:
+                    delta_height = loc_y - pre_point_loc[1]
+                    delta_width = loc_x - pre_point_loc[0]
+                    temp = pre_point_loc[1] + math.floor(((j - pre_point_loc[0]) / delta_width) * delta_height)
+                    if temp < 0:
+                        bound_line[j] = 0
+                    elif temp > rows:
+                        bound_line[j] = rows
+                    else:
+                        bound_line[j] = temp
+        pre_point_loc = (loc_x, loc_y)
+    
     # 如果保留上半部分
     if method == 1:
         for i in range(cols):
@@ -108,29 +105,26 @@ def mask_left_or_right(line_shp_fn, dir_tif_fn, method=3):
     # 初始化分界线，每一列都有一个分界点，分界点之上或之下的部分设为空值
     bound_line = np.zeros((rows,), dtype=np.int32)
 
+    
     pre_point_loc = None
     for lon, lat in linestring:
-        # 只计算落在栅格影响范围内的点
-        if check_in_envelope(lon, lat, envelope):
-            loc_x = int((lon - ul_x) / delta_x)
-            loc_y = int((lat - ul_y) / delta_y)
-            # 如果这是第一个落在栅格影像范围内的点，那么左侧每一列的分界点都与当前落点相同
-            if pre_point_loc is None:
-                bound_line[0: loc_y] = loc_x
-            # 如果不是，则线性插值当前落点和前一个落点之间，每一列的分界点
-            else:
-                delta_height = loc_y - pre_point_loc[1]
-                delta_width = loc_x - pre_point_loc[0]
-                for i in range(pre_point_loc[1], loc_y):
-                    bound_line[i] = pre_point_loc[0] + int(((i - pre_point_loc[1]) / delta_height) * delta_width)
-            # 更新前一个落点
-            pre_point_loc = (loc_x, loc_y)
-
-    # 以最后一个落在栅格影像范围内的点为准，补足剩余的分界点
-    if pre_point_loc[1] < rows:
-        bound_line[pre_point_loc[1]:] = pre_point_loc[0]
-
-    # 如果保留上半部分
+        loc_x = math.floor((lon - ul_x) / delta_x)
+        loc_y = math.floor((lat - ul_y) / delta_y)
+        if pre_point_loc is not None:
+            for i in range(pre_point_loc[1], loc_y):
+                if 0 <= i < rows:
+                    delta_height = loc_y - pre_point_loc[1]
+                    delta_width = loc_x - pre_point_loc[0]
+                    temp = pre_point_loc[0] + math.floor(((i - pre_point_loc[1]) / delta_height) * delta_width)
+                    if temp < 0:
+                        bound_line[i] = 0
+                    elif temp > rows:
+                        bound_line[i] = cols
+                    else:
+                        bound_line[i] = temp
+        pre_point_loc = (loc_x, loc_y)
+    
+    # 如果保留左半部分
     if method == 3:
         for i in range(rows):
             dir_arr[i, bound_line[i]:] = raster.dir_nodata

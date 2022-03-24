@@ -192,17 +192,17 @@ def create_level_table(db_path, level):
 ######################################
 
 
-def get_basin_type(dbpath, code):
+def get_basin_type(dbpath):
 
     conn = sqlite3.connect(dbpath)
-    sql_line = "select TYPE from basin_property where code=%s;" % code
-    res = conn.cursor().execute(sql_line)
-    res = list(res)
-
-    if len(res) == 0:
+    cursor = conn.cursor()
+    cursor.execute("select TYPE from %s;" % bp_table_name)
+    res = cursor.fetchone()
+    
+    if res is None:
         raise Exception("table basin_property of database %s does not have attribute 'type'!" % dbpath)
 
-    basin_type = res[0][0]
+    basin_type = res[0]
     if basin_type < 1 or basin_type > 5:
         raise Exception("Unknown basin type in table basin_property of database %s!" % dbpath)
 
@@ -213,7 +213,7 @@ def get_ul_offset(db_path):
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("select ul_con_ridx, ul_con_cidx from geo_transform limit 1;")
+    cursor.execute("select ul_con_ridx, ul_con_cidx from %s limit 1;" % gt_table_name)
     result = cursor.fetchone()
     conn.close()
 
@@ -230,14 +230,14 @@ def get_divisible_basins(db_path, level):
     table_name = "level_%d" % level
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("select count(*), sum(divide_area) from %s where divisible = 1" % table_name)
+    cursor.execute("select count(*), sum(divide_area) from %s where divisible = 1;" % table_name)
     cur_num, cur_total_area = cursor.fetchone()
 
     sub_mean_area = cur_total_area / (3 * cur_num)
     divide_num = math.ceil(math.ceil(cur_total_area / sub_mean_area - cur_num) / 8)
 
     cursor.execute("select code, type, total_area, divide_area, sink_num, island_num from %s "
-                   "where divisible = 1 order by divide_area desc" % table_name)
+                   "where divisible = 1 order by divide_area desc;" % table_name)
     basin_list = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -256,7 +256,7 @@ def get_indivisible_basins(db_path, level):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute("select code, type, total_area, divide_area, sink_num, island_num from %s "
-                   "where divisible = 0" % table_name)
+                   "where divisible = 0;" % table_name)
     basin_list = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -289,11 +289,11 @@ def get_outlet_1(db_path, sink_num):
     cursor = conn.cursor()
 
     # 读取流域属性数据
-    cursor.execute("select outlet_ridx, outlet_cidx, area from basin_property;")
+    cursor.execute("select outlet_ridx, outlet_cidx, area from %s;" % bp_table_name)
     outlet_ridx, outlet_cidx, area = cursor.fetchone()
 
     if sink_num > 0:
-        cursor.execute("select * from sink_bottoms order by area desc;")
+        cursor.execute("select * from %s order by area desc;" % sb_table_name)
         sinks = cursor.fetchall()
     else:
         sinks = []
@@ -308,18 +308,18 @@ def get_outlet_4(db_path, all_sink_num, all_island_num):
     cursor = conn.cursor()
 
     # 先查询四个主要外流区
-    cursor.execute("select * from main_outlets order by area desc;")
+    cursor.execute("select * from %s order by area desc;" % mo_table_name)
     outlets = cursor.fetchall()
     outlets_num = len(outlets)
 
     # 查询大陆内流区和岛屿内流区
     if all_sink_num > 0:
-        cursor.execute("select * from sink_bottoms where type = 1 order by area desc;")
+        cursor.execute("select * from %s where type = 1 order by area desc;" % sb_table_name)
         sinks = cursor.fetchall()
         sink_num = len(sinks)
         i_sink_num = all_sink_num - sink_num
         if i_sink_num > 0:
-            cursor.execute("select * from sink_bottoms where type = 2 order by area desc;")
+            cursor.execute("select * from %s where type = 2 order by area desc;" % sb_table_name)
             i_sinks = cursor.fetchall()
         else:
             i_sinks = None
@@ -329,12 +329,12 @@ def get_outlet_4(db_path, all_sink_num, all_island_num):
 
     # 查询归属于大陆的岛屿和其他岛屿
     if all_island_num > 0:
-        cursor.execute("select * from islands where type = 1 order by area desc;")
+        cursor.execute("select * from %s where type = 1 order by area desc;" % is_table_name)
         m_islands = cursor.fetchall()
         m_island_num = len(m_islands)
         island_num = all_island_num - m_island_num
         if island_num > 0:
-            cursor.execute("select * from islands where type = 2 order by area desc;")
+            cursor.execute("select * from %s where type = 2 order by area desc;" % is_table_name)
             islands = cursor.fetchall()
         else:
             islands = []
@@ -352,18 +352,18 @@ def get_outlet_5(db_path, sink_num):
     cursor = conn.cursor()
 
     # 查询所有岛屿
-    cursor.execute("select * from islands where type=2 order by area desc;")
+    cursor.execute("select * from %s where type=2 order by area desc;" % is_table_name)
     islands = cursor.fetchall()
 
     # 查询所有内流区
     if sink_num > 0:
-        cursor.execute("select * from sinks where type=2 order by area desc;")
+        cursor.execute("select * from %s where type=2 order by area desc;" % sb_table_name)
         sinks = cursor.fetchall()
     else:
         sinks = []
 
     # 查询总面积
-    cursor.execute("select total_area from basin_property;")
+    cursor.execute("select total_area from %s;" % bp_table_name)
     total_area = cursor.fetchone()[0]
 
     return total_area, islands, sinks
@@ -383,7 +383,7 @@ def insert_basin_stat(db_path, level, ins_value):
     :return:
     """
     table_name = "level_%d" % level
-    sql_line = "INSERT INTO %s VALUES(?,?,?,?,?,?,?)" % table_name
+    sql_line = "INSERT INTO %s VALUES(?,?,?,?,?,?,?);" % table_name
     conn = sqlite3.connect(db_path, timeout=20)
     cursor = conn.cursor()
     cursor.execute(sql_line, ins_value)
@@ -400,7 +400,7 @@ def insert_basin_stat_many(db_path, level, ins_value_list):
     :return:
     """
     table_name = "level_%d" % level
-    sql_line = "INSERT INTO %s VALUES(?,?,?,?,?,?,?)" % table_name
+    sql_line = "INSERT INTO %s VALUES(?,?,?,?,?,?,?);" % table_name
     conn = sqlite3.connect(db_path, timeout=30)
     cursor = conn.cursor()
     cursor.executemany(sql_line, ins_value_list)

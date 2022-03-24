@@ -126,7 +126,7 @@ def process_scene_1(record, root, level_db, threshold, level, log_folder):
         else:
             raise ValueError("Unknown basin type %d " % basin_type)
     
-        dp.insert_basin_stat_many(level_db, level, result)
+        dp.insert_basin_stat_many(level_db, level + 1, result)
 
     except:
         print("Error in basin %s, process_type 1" % code)
@@ -211,7 +211,7 @@ def main_wd(root, level_db, threshold, level, p_num):
     :return:
     """
     # 创建下一层级的流域汇总表
-    dp.create_level_table(level_db, level)
+    dp.create_level_table(level_db, level + 1)
     # 多进程错误日志文件
     error_log_folder = os.path.join(root, "log", "level_%02d" % level)
     if not os.path.exists(error_log_folder):
@@ -253,7 +253,7 @@ def main_wd(root, level_db, threshold, level, p_num):
 
     ins_val_list = [map_record_not_divided(basin_list[i]) for i in range(divide_num, level_divisible_num)]
     if len(ins_val_list) > 0:
-        dp.insert_basin_stat_many(level_db, level, ins_val_list)
+        dp.insert_basin_stat_many(level_db, level + 1, ins_val_list)
 
     #############################
     #   提前预知的不需要划分的流域   #
@@ -269,7 +269,7 @@ def main_wd(root, level_db, threshold, level, p_num):
     
     ins_val_list = [map_record_indivisible(rec) for rec in basin_list]
     if len(ins_val_list) > 0:
-        dp.insert_basin_stat(level_db, level, ins_val_list)
+        dp.insert_basin_stat_many(level_db, level + 1, ins_val_list)
     
     
 if __name__ == "__main__":
