@@ -663,7 +663,6 @@ def island_merge(islands, island_num, island_merge_flag, coded_islands, di_islan
         max_dst = float(basin_arr.shape[0] + basin_arr.shape[1])
         min_dst_island = island_num
 
-
         for i in range(island_num):
             # 如果岛屿没有被编码，逐编码岛屿计算距离，保留最近的编码岛屿
             if island_merge_flag[i] == 0:
@@ -943,11 +942,9 @@ def prepare_4(dir_arr, upa_arr, islands, island_num, sinks, sink_num, threshold)
         gc_cor = (temp[2], temp[2], temp[1], temp[1])
         nearest_j, nearest_i = list(sp_idx.nearest(gc_cor, objects="raw"))[0]
         nearest_dst = distance_2d((temp[2], temp[1]), (nearest_j, nearest_i)) - temp[5]
-        is_type = 1 if nearest_dst < 10 and temp[6] < 0.1 else 2
         temp[12] = float(nearest_dst)
         temp[13] = int(nearest_i)
         temp[14] = int(nearest_j)
-        temp[15] = is_type
         other_islands.append(tuple(temp))
 
     # 内流区列表
