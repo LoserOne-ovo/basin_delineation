@@ -436,7 +436,7 @@ def create_lake_topology_int32_c(lake_arr, lake_num, dir_arr):
     return down_lake_arr, block_arr
 
 
-def create_route_between_lake_c(lake_arr, lake_num, dir_arr, upa_arr, dll):
+def create_route_between_lake_c(lake_arr, lake_num, dir_arr, upa_arr):
 
     rows, cols = lake_arr.shape
     func = dll.create_route_between_lake
