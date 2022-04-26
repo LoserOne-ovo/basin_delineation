@@ -435,3 +435,29 @@ def create_lake_topology_int32_c(lake_arr, lake_num, dir_arr):
 
     return down_lake_arr, block_arr
 
+
+def create_route_between_lake_c(lake_arr, lake_num, dir_arr, upa_arr, dll):
+
+    rows, cols = lake_arr.shape
+    func = dll.create_route_between_lake
+
+    func.argtypes = [np.ctypeslib.ndpointer(dtype=np.int32, ndim=2, shape=(rows, cols), flags='C_CONTIGUOUS'),
+                     ctypes.c_int32,
+                     np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, shape=(rows, cols), flags='C_CONTIGUOUS'),
+                     np.ctypeslib.ndpointer(dtype=np.float32, ndim=2, shape=(rows, cols), flags='C_CONTIGUOUS'),
+                     ctypes.c_int32, ctypes.c_int32,
+                     ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_uint64)]
+    func.restype = ctypes.POINTER(ctypes.c_uint64)
+
+    route_num = ctypes.pointer(ctypes.c_int32(0))
+    result_length = ctypes.pointer(ctypes.c_uint64(0))
+    ptr = func(lake_arr, lake_num, dir_arr, upa_arr, rows, cols, route_num, result_length)
+
+    arr_type = ctypes.c_uint64 * result_length.contents.value
+    address = ctypes.addressof(ptr.contents)
+    result_arr = np.frombuffer(arr_type.from_address(address), dtype=np.uint64)
+
+    return result_arr, route_num.contents.value
+
+
+
