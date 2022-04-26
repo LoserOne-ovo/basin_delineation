@@ -1,6 +1,6 @@
 import os
 import sys
-sys.path.append(r"../../")
+sys.path.append(r".././")
 import argparse
 import numpy as np
 from util import raster

@@ -30,7 +30,7 @@
 /// <returns>
 ///     ÄæÁ÷Ïò¾ØÕó
 /// </returns>
-unsigned char* _get_re_dir(unsigned char* fdir, int rows, int cols) {
+unsigned char* _get_re_dir(unsigned char* __restrict fdir, int rows, int cols) {
 
     uint64 cols64 = (uint64)cols;
     unsigned char nodata = 255;

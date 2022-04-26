@@ -3,12 +3,12 @@
 #include "type_aka.h"
 #include "list.h"
 #include "get_reverse_fdir.h"
-#include "paint_upper.h"
+#include "paint_up.h"
 #include "river.h"
 
 
 
-int* _dfn_stream(unsigned char* dir, float* upa, float ths, int outlet_ridx, int outlet_cidx, int rows, int cols) {
+int* _dfn_stream(unsigned char* __restrict dir, float* __restrict upa, float ths, int outlet_ridx, int outlet_cidx, int rows, int cols) {
 
 
 	uint64 total_num = rows * (uint64)cols;
@@ -17,7 +17,7 @@ int* _dfn_stream(unsigned char* dir, float* upa, float ths, int outlet_ridx, int
 	const uint8 div[8] = { 128,64,32,16,8,4,2,1 };
 
 	// 初始化结果
-	int* result = (int*)calloc(total_num, sizeof(int));
+	int* __restrict result = (int*)calloc(total_num, sizeof(int));
 	if (result == NULL) {
 		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
@@ -131,7 +131,8 @@ int* _dfn_stream(unsigned char* dir, float* upa, float ths, int outlet_ridx, int
 	other_basin_cell = 1
 
 */
-int _dfn_stream_overlap_lake(int* lake, unsigned char* dir, float* upa, float ths, int outlet_ridx, int outlet_cidx, int rows, int cols) {
+int _dfn_stream_overlap_lake(int* __restrict lake, unsigned char* __restrict dir, float* __restrict upa, 
+	float ths, int outlet_ridx, int outlet_cidx, int rows, int cols) {
 
 
 	uint64 idx = 0, upper_idx =0;
@@ -306,7 +307,7 @@ int _dfn_stream_overlap_lake(int* lake, unsigned char* dir, float* upa, float th
 
 
 // 绘制河道的山坡单元
-int _paint_river_hillslope_int32(int* stream, int min_channel_id, int max_channel_id, unsigned char* dir, unsigned char * re_dir, int rows, int cols) {
+int _paint_river_hillslope_int32(int* __restrict stream, int min_channel_id, int max_channel_id, unsigned char* __restrict dir, unsigned char* __restrict re_dir, int rows, int cols) {
 
 
 	/**************************
@@ -545,7 +546,23 @@ int _check_dir_in_upper_stream(unsigned char dir, unsigned char upper_stream_dir
 
 
 
+int _check_on_mainstream(int t_ridx, int t_cidx, int inlet_ridx, int inlet_cidx, unsigned char inlet_dir, unsigned char* dir, int cols) {
 
+	uint8 temp_dir = 0;
+	uint64 t_idx = t_ridx * (uint64)cols + t_cidx;
+	uint64 inlet_idx = inlet_ridx * (uint64)cols + inlet_cidx;
+	inlet_idx = _get_down_idx64(inlet_dir, inlet_idx, cols);
+
+	while (inlet_idx != 0)
+	{
+		if (inlet_idx == t_idx) {
+			return 1;
+		}
+		inlet_idx = _get_down_idx64(dir[inlet_idx], inlet_idx, cols);
+
+	}
+	return 0;
+}
 
 
 

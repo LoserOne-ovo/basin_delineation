@@ -32,7 +32,7 @@
 /// <param name="cols">二维矩阵列数</param>
 /// <param name="label_num">返回四连通区域标记数量</param>
 /// <returns>四连域标记结果</returns>
-unsigned int* _label_4con(unsigned char* bin_ima, int rows, int cols, unsigned int* label_num) {
+unsigned int* _label_4con(unsigned char* __restrict bin_ima, int rows, int cols, unsigned int* label_num) {
 
     // reference: https://www.cnblogs.com/ronny/p/img_aly_01.html
 
@@ -41,7 +41,7 @@ unsigned int* _label_4con(unsigned char* bin_ima, int rows, int cols, unsigned i
     // 初始化返回结果为0
     uint root_num = 0;
     uint64 total = rows * cols64;
-    uint* result = (unsigned int*)calloc(total, sizeof(unsigned int));
+    uint* __restrict result = (unsigned int*)calloc(total, sizeof(unsigned int));
     if (result == NULL) {
         fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
         exit(-1);
@@ -213,12 +213,12 @@ unsigned int* _label_4con(unsigned char* bin_ima, int rows, int cols, unsigned i
 
     if (tuple_tag > 1) {
 
-        unsigned int* dissolved_tags = (unsigned int*)calloc(tuple_tag, sizeof(unsigned int));
+        unsigned int* __restrict dissolved_tags = (unsigned int*)calloc(tuple_tag, sizeof(unsigned int));
         if (dissolved_tags == NULL) {
             fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
             exit(-1);
         }
-        unsigned int* solved_tags = (unsigned int*)calloc(tuple_tag, sizeof(unsigned int));
+        unsigned int* __restrict solved_tags = (unsigned int*)calloc(tuple_tag, sizeof(unsigned int));
         if (solved_tags == NULL) {
             fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
             exit(-1);

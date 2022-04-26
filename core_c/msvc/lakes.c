@@ -4,7 +4,7 @@
 #include "type_aka.h"
 #include "list.h"
 #include "get_reverse_fdir.h"
-#include "paint_upper.h"
+#include "paint_up.h"
 #include "lakes.h"
 
 
@@ -14,7 +14,8 @@
  ********************************/
 
  // 修正湖泊河网
-int _correct_lake_network_int32(int* lake, unsigned char* dir, unsigned char* re_dir, float* upa, float ths, int rows, int cols) {
+int _correct_lake_network_int32(int* __restrict lake, unsigned char* __restrict dir, unsigned char* __restrict re_dir, 
+	float* __restrict upa, float ths, int rows, int cols) {
 
 	uint64 idx = 0;
 	uint64 upper_idx = 0, down_idx = 0;
@@ -50,8 +51,8 @@ int _correct_lake_network_int32(int* lake, unsigned char* dir, unsigned char* re
 
 
 //  修正湖泊河网，一次一个像元（递归）
-int _update_lake(unsigned long long upper_idx, unsigned long long down_idx, int lake_value, int* lake,
-	unsigned char* re_dir, float* upa, float ths, int cols, const unsigned char div[], const int offset[]) {
+int _update_lake(unsigned long long upper_idx, unsigned long long down_idx, int lake_value, int* __restrict lake, unsigned char* __restrict re_dir, 
+	float* __restrict upa, float ths, int cols, const unsigned char div[], const int offset[]) {
 
 	uint64 upper_i = 0, upper_j = 0, down_i = 0, down_j = 0;
 	int flag = 0;
@@ -111,7 +112,8 @@ int _update_lake(unsigned long long upper_idx, unsigned long long down_idx, int 
 
 
 // 修正湖泊河网， 当河流反复穿插湖泊，并且河流长度小于阈值，则将这段河流以及河流与湖泊之间所夹的坡面合并到湖泊中
-int _correct_lake_network_2_int32(int* lake, unsigned char* dir, unsigned char* re_dir, float* upa, float ths, int rows, int cols) {
+int _correct_lake_network_2_int32(int* __restrict lake, unsigned char* __restrict dir, unsigned char* __restrict re_dir,
+	float* __restrict upa, float ths, int rows, int cols) {
 
 
 	/********************
@@ -129,7 +131,7 @@ int _correct_lake_network_2_int32(int* lake, unsigned char* dir, unsigned char* 
 
 	
 	// 开辟一个辅助标记图层，用于种子填充
-	int* fill_layer = (int*)malloc(total_num * sizeof(int));
+	int* __restrict fill_layer = (int*)malloc(total_num * sizeof(int));
 	if (fill_layer == NULL) {
 		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
@@ -169,7 +171,7 @@ int _correct_lake_network_2_int32(int* lake, unsigned char* dir, unsigned char* 
 
 
 
-int _copy_layer_int32(int* src, int* dst, unsigned long long total_num) {
+int _copy_layer_int32(int* __restrict src, int* __restrict dst, unsigned long long total_num) {
 
 	for (uint64 idx = 0; idx < total_num; idx++) {
 		dst[idx] = src[idx];
@@ -181,7 +183,7 @@ int _copy_layer_int32(int* src, int* dst, unsigned long long total_num) {
 // 对于湖泊和河道不完全匹配的部分进行处理，如河流从湖泊中流出后又重新注入该湖泊。
 // 这种情况会导致湖泊坡面中出现一些空洞。
 // 为了避免这种情况，把河道与湖泊所夹的部分标记为湖泊。
-int _update_lake_bound_int32(unsigned long long idx, int* water, int* new_layer, unsigned char* dir, int cols, int value) {
+int _update_lake_bound_int32(unsigned long long idx, int* __restrict water, int* __restrict new_layer, unsigned char* __restrict dir, int cols, int value) {
 
 	/********************
 	 *   常规参数声明   *
@@ -373,7 +375,7 @@ int _update_lake_bound_int32(unsigned long long idx, int* water, int* new_layer,
 
 
 // 追踪湖泊坡面
-int _paint_up_lake_hillslope_int32(int* lake, int max_lake_id, unsigned char* re_dir, float* upa, float ths, int rows, int cols) {
+int _paint_up_lake_hillslope_int32(int* __restrict lake, int max_lake_id, unsigned char* __restrict re_dir, float* __restrict upa, float ths, int rows, int cols) {
 
 	uint64 idx = 0, upper_idx = 0;
 	uint64 total_num = rows * (uint64)cols;
@@ -441,7 +443,7 @@ int _paint_up_lake_hillslope_int32(int* lake, int max_lake_id, unsigned char* re
 
 
 // 追踪湖泊坡面，并将连接同一个湖泊的河段也标记为坡面（如果没有其他河流）
-int _paint_up_lake_hillslope_2_int32(int* lake, int max_lake_id, unsigned char* dir, unsigned char* re_dir, float* upa, float ths, int rows, int cols) {
+int _paint_up_lake_hillslope_2_int32(int* __restrict lake, int max_lake_id, unsigned char* __restrict dir, unsigned char* __restrict re_dir, float* __restrict upa, float ths, int rows, int cols) {
 
 	uint64 idx = 0, upper_idx = 0, down_idx = 0;
 	uint64 total_num = rows * (uint64)cols;
@@ -478,9 +480,7 @@ int _paint_up_lake_hillslope_2_int32(int* lake, int max_lake_id, unsigned char* 
      *********************/
 
 	for (idx = 0; idx < total_num; idx++) {
-
-		lake_value = lake[idx];
-		
+		lake_value = lake[idx];	
 		// 如果既不是河道也不是湖泊
 		if (lake_value == 0 && upa[idx] < ths) {
 			// 计算下游
@@ -524,9 +524,7 @@ int _paint_up_lake_hillslope_2_int32(int* lake, int max_lake_id, unsigned char* 
 		else {
 			;
 		}
-
 	}
-
 
 	free(stack.List);
 	stack.List = NULL;
@@ -547,23 +545,17 @@ int _paint_up_lake_hillslope_2_int32(int* lake, int max_lake_id, unsigned char* 
 
 
 // 追踪湖泊本地流域
-int _paint_lake_local_catchment_int32(int* lake, int lake_num, unsigned char* re_dir, int rows, int cols) {
+int _paint_lake_local_catchment_int32(int* __restrict lake, int lake_num, unsigned char* __restrict re_dir, int rows, int cols) {
 
 	uint64 idx = 0, upper_idx = 0, temp_idx = 0;
 	uint64 total_num = rows * (uint64)cols;
-
 	uint8 reverse_fdir = 0, sub_reverse_fdir = 0;
-
-	int lake_value = 0;
-
 	const uint8 div[8] = { 128,64,32,16,8,4,2,1 };
 	const int offset[8] = { -cols + 1, -cols, -cols - 1, -1,-1 + cols,cols,cols + 1, 1 };
-
+	int lake_value = 0;
 
 	// 栈相对于整幅影像大小的比率
 	double frac = 0.001;
-
-
 	// 初始化绘制栈
 	uint64 batch_size = ((uint64)(rows * (uint64)cols * frac / 10000) + 1) * 10000;
 	if (batch_size > 100000000) {
@@ -578,31 +570,23 @@ int _paint_lake_local_catchment_int32(int* lake, int lake_num, unsigned char* re
 	}
 	stack.alloc_length = batch_size;
 
-
+	// 绘制湖泊本地流域
 	for (idx = 0; idx < total_num; idx++) {
-
 		lake_value = lake[idx];
 		// 如果该像元是湖泊
 		if (lake_value > 0 && lake_value <= lake_num) {
-
 			reverse_fdir = re_dir[idx];
-
 			// 找到非湖泊的上游
 			for (int p = 0; p < 8; p++) {
 				if (reverse_fdir >= div[p]) {
 					upper_idx = idx + offset[p];
-
 					// 如果不是湖泊像元，则开始向上追踪坡面，直到遇到其他湖泊
 					if (lake[upper_idx] == 0) {
-						
 						stack.List[0] = upper_idx;
 						stack.length = 1;
-
 						while (stack.length > 0) {
-
 							temp_idx = stack.List[--stack.length];
 							lake[temp_idx] = lake_value;
-
 							sub_reverse_fdir = re_dir[temp_idx];
 							for (int p = 0; p < 8; p++) {
 								if (sub_reverse_fdir >= div[p]) {
@@ -621,7 +605,6 @@ int _paint_lake_local_catchment_int32(int* lake, int lake_num, unsigned char* re
 		}
 	}
 
-
 	free(stack.List);
 	stack.List = NULL;
 	stack.length = 0;
@@ -633,7 +616,7 @@ int _paint_lake_local_catchment_int32(int* lake, int lake_num, unsigned char* re
 
 
 // 追踪湖泊上游流域
-int _paint_lake_upper_catchment_int32(int* lake, int lake_id, int* board, unsigned char* re_dir, int rows, int cols) {
+int _paint_lake_upper_catchment_int32(int* __restrict lake, int lake_id, int* __restrict board, unsigned char* __restrict re_dir, int rows, int cols) {
 
 
 	uint64 idx = 0;
@@ -696,19 +679,18 @@ int _paint_lake_upper_catchment_int32(int* lake, int lake_id, int* board, unsign
  ********************************/
 
 // 建立湖泊之间的上下游关系
-int* _topology_between_lakes(int* water, int lake_num, int* tag_array, unsigned char* dir, int rows, int cols) {
+int* _topology_between_lakes(int* __restrict water, int lake_num, int* __restrict tag_array, unsigned char* __restrict dir, int rows, int cols) {
 
 	uint64 idx = 0;
 	uint64 total_num = rows * (uint64)cols;
-	int default_down_lake_num = 10;
-
 	uint64 down_idx = 0;
 	int water_id = 0;
 	int next_down_id = 0;
 	int down_water_id = 0;
+	int default_down_lake_num = 10;
 
-	
 	// 分配空间
+	// 每个湖泊可以有多个下游
 	i32_List* down_lake_List = (i32_List*)malloc(lake_num * sizeof(i32_List));
 	if (down_lake_List == NULL) {
 		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
@@ -725,37 +707,35 @@ int* _topology_between_lakes(int* water, int lake_num, int* tag_array, unsigned 
 		down_lake_List[i].alloc_length = default_down_lake_num;
 	}
 
+	// 寻找每个湖泊的下游
 	for (idx = 0; idx < total_num; idx++) {
-
 		water_id = water[idx];
+		// 如果是湖泊
 		if (water_id > 0) {
-
-			// 判断湖泊内的内流区终点
+			// 判断是否是湖泊内的内流区终点
+			// 如果湖泊内的内流区终点，将湖泊本身的id插入到下游列表中
 			if (dir[idx] == 255) {
 				if (!check_in_i32_List(water_id, &down_lake_List[water_id - 1])) {
 					i32_List_append(&down_lake_List[water_id - 1], water_id);
 				}
 				continue;
 			}
-
-			//判断是否是湖泊出水口
+			// 如果不是湖泊，判断该点是否是湖泊出水口
 			down_idx = _get_down_idx64(dir[idx], idx, cols);
-			next_down_id = water[down_idx];
-			
-			// 下游还是这个湖泊
+			next_down_id = water[down_idx];	
+			// 下游还是这个湖泊，说明不是湖泊出水口
 			if (next_down_id == water_id) {
 				continue;
 			}
-			// 下游不是湖泊
+			// 直接下游不是湖泊
 			else if (next_down_id == 0) {				
 				// 寻找下游湖泊
 				down_water_id = _find_next_water_body_int32(down_idx, water, dir, cols);
-				
 				// 没有下游湖泊或下游仍然是这个湖泊
-				if (down_water_id <= 0 || down_water_id == water_id) {
+				if (down_water_id == 0 || down_water_id == water_id) {
 					continue;
 				}
-				// 下游是其他湖泊
+				// 下游是其他湖泊，或是没有湖泊的内流区终点
 				else {
 					// 检查是否已经记录了这个湖泊
 					if (!check_in_i32_List(down_water_id, &down_lake_List[water_id - 1])) {
@@ -763,11 +743,10 @@ int* _topology_between_lakes(int* water, int lake_num, int* tag_array, unsigned 
 					}
 				}
 			}
-			// 下游是其他湖泊
+			// 直接下游是其他湖泊
 			else if (next_down_id > 0) {
-				next_down_id *= -1;
-				if (!check_in_i32_List(down_water_id, &down_lake_List[water_id - 1])) {
-					i32_List_append(&down_lake_List[water_id - 1], down_water_id);
+				if (!check_in_i32_List(next_down_id, &down_lake_List[water_id - 1])) {
+					i32_List_append(&down_lake_List[water_id - 1], next_down_id);
 				}
 			}
 			// 下游在流域外
@@ -776,7 +755,6 @@ int* _topology_between_lakes(int* water, int lake_num, int* tag_array, unsigned 
 			}
 		}
 
-		
 		/****************************************
 		 *  未来可以通过出水口的上游湖泊面积，  *
 		 *  判断该出水口是否是湖泊真正的出水口  *
@@ -815,8 +793,13 @@ int* _topology_between_lakes(int* water, int lake_num, int* tag_array, unsigned 
 }
 
 
-// 找到下游的水体 
-int _find_next_water_body_int32(unsigned long long idx, int* water, unsigned char* dir, int cols) {
+// 寻找下游的水体 
+/*
+	如果没有找到下游水体( pixel_value > 0)，返回背景值，建议设置为0
+	如果找到下游水体，则返回下游水体的编号
+	如果下游是一个局部洼点，且局部洼点处没有水体，则返回-1
+*/
+int _find_next_water_body_int32(unsigned long long idx, int* __restrict water, unsigned char* __restrict dir, int cols) {
 
 	uint64 down_idx = idx;
 	int down_water_id = 0;
@@ -845,7 +828,7 @@ int _find_next_water_body_int32(unsigned long long idx, int* water, unsigned cha
 
 
 // 标记D8流向中所有潜在的湖泊出水口
-int _mark_lake_outlet_int32(int* lake, int min_lake_id, int max_lake_id, unsigned char* dir, int rows, int cols) {
+int _mark_lake_outlet_int32(int* __restrict lake, int min_lake_id, int max_lake_id, unsigned char* __restrict dir, int rows, int cols) {
 
 	uint64 idx = 0, down_idx = 0;
 	uint64 total_num = rows * (uint64)cols;
@@ -880,8 +863,8 @@ int _mark_lake_outlet_int32(int* lake, int min_lake_id, int max_lake_id, unsigne
 
 
 // 建立湖泊之间的流路
-unsigned long long* _route_between_lake(int* lake, int lake_num, unsigned char* dir, float* upa, int rows, int cols, 
-	int* return_num, unsigned long long* return_length) {
+unsigned long long* _route_between_lake(int* __restrict lake, int lake_num, unsigned char* __restrict dir, float* __restrict upa, 
+	int rows, int cols, int* return_num, unsigned long long* return_length) {
 
 
 	uint64 idx = 0;
@@ -1058,13 +1041,13 @@ unsigned long long* _route_between_lake(int* lake, int lake_num, unsigned char* 
 }
 
 
-int _insert_lake_down_water(lake_pour* src, int src_id, int down_id, unsigned long long outlet_idx, float* upa){
+int _insert_lake_down_water(lake_pour* src, int src_id, int down_id, unsigned long long outlet_idx, float* __restrict upa){
 
 	// 判断是否已经存在该下游
 	int exist_flag = _check_lake_down_existed(src, down_id);
 	// 如果不存在，直接插入
 	if (exist_flag < 0){
-		water_pour* newList = (water_pour*)realloc(src->List, (src->num + DEFAULT_POUR_NUM) * sizeof(water_pour));
+		water_pour* newList = (water_pour*)realloc(src->List, (src->num + (uint64)DEFAULT_POUR_NUM) * sizeof(water_pour));
 		if (newList == NULL) {
 			fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 			exit(-1);
@@ -1097,7 +1080,7 @@ int _check_lake_down_existed(lake_pour* src, int down_id) {
 }
 
 
-int _extract_route(u64_List* src, int down_water, unsigned long long outlet_idx, int* lake, unsigned char* dir, int cols) {
+int _extract_route(u64_List* src, int down_water, unsigned long long outlet_idx, int* __restrict lake, unsigned char* __restrict dir, int cols) {
 
 
 	uint8 upper_dir = 255;

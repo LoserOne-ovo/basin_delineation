@@ -1,11 +1,12 @@
+import gc
 import sys
+sys.path.append(r"../../")
+import pickle
 import sqlite3
 import numpy as np
-sys.path.append(r"../../")
 from numba import jit
 from util import raster
 from util import interface as cfunc
-from basin import db_op as dp
 
 
 """
@@ -18,7 +19,42 @@ from basin import db_op as dp
 
 
 bump_table = "bump"
-bump_sql = "INSERT INTO %s VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)" % bump_table
+bump_sql = "INSERT INTO %s VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)" % bump_table
+
+
+def create_bump_table(db_conn):
+    """
+    在数据库中建立凸起的表格
+    :param db_conn:
+    :return:
+    """
+    db_cursor = db_conn.cursor()
+    # 在数据库中建立流域属性的表
+    db_cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='%s';" % bump_table)
+    exist_flag = db_cursor.fetchone()[0]
+    # 如果表格已经存在，删除表格
+    if exist_flag > 0:
+        db_cursor.execute("DROP TABLE %s;" % bump_table)
+
+    sql_line = '''CREATE TABLE %s
+        (id INTEGER,
+        ridx INTEGER,
+        cidx INTEGER,
+        u_label INTEGER,
+        u_num INTEGER,
+        u_area REAL,
+        l_label INTEGER,
+        l_num INTEGER,
+        l_area REAL,
+        r_label INTEGER,
+        r_num INTEGER,
+        r_area REAL,
+        d_label INTEGER,
+        d_num INTEGER,
+        d_area REAL,
+        bump BLOB);''' % bump_table
+    db_cursor.execute(sql_line)
+    db_conn.commit()
 
 
 @jit(nopython=True)
@@ -60,38 +96,32 @@ def calc_diff_neighbor(a, b, c, d):
         return result
 
 
-def create_bump_table(db_conn):
-    """
-    在数据库中建立凸起的表格
-    :param db_conn:
-    :return:
-    """
-    db_cursor = db_conn.cursor()
-    # 在数据库中建立流域属性的表
-    db_cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='%s';" % bump_table)
-    exist_flag = db_cursor.fetchone()[0]
-    # 如果表格已经存在，删除表格
-    if exist_flag > 0:
-        db_cursor.execute("DROP TABLE %s;" % bump_table)
+def get_bump_idxs(label_arr, bump_label, center_i, center_j, radius):
 
-    sql_line = '''CREATE TABLE %s
-        (id INTEGER,
-        ridx INTEGER,
-        cidx INTEGER,
-        u_label INTEGER,
-        u_num INTEGER,
-        u_area REAL,
-        l_label INTEGER,
-        l_num INTEGER,
-        l_area REAL,
-        r_label INTEGER,
-        r_num INTEGER,
-        r_area REAL,
-        d_label INTEGER,
-        d_num INTEGER,
-        d_area REAL);''' % bump_table
-    db_cursor.execute(sql_line)
-    db_conn.commit()
+    rows, cols = label_arr.shape
+    min_ridx = max(0, center_i - radius)
+    min_cidx = max(0, center_j - radius)
+    max_ridx = min(rows, center_i + radius)
+    max_cidx = min(cols, center_j + radius)
+    result = np.argwhere(label_arr[min_ridx:max_ridx, min_cidx:max_cidx] == bump_label)
+    
+    # 检查凸起部是否完全位于缓冲区内
+    a = np.sum(result[:, 0] == 0)
+    b = np.sum(result[:, 0] == (max_ridx - min_ridx))
+    c = np.sum(result[:, 1] == 0)
+    d = np.sum(result[:, 1] == (max_cidx - min_cidx))
+    
+    if (a + b + c + d) == 0:
+        result[:, 0] += min_ridx
+        result[:, 1] += min_cidx
+        result = result.astype(np.uint64)
+        result = result[:, 0] * cols + result[:, 1]
+        return result
+    else:
+        if min_ridx == 0 and min_cidx == 0 and max_ridx == rows and max_cidx == cols:
+            return -1
+        else:
+            return 0
 
 
 def find_estuary_bump(dir_tif, upa_tif, min_threshold, bump_db):
@@ -115,6 +145,8 @@ def find_estuary_bump(dir_tif, upa_tif, min_threshold, bump_db):
     all_edge[dir_arr == 0] = 1
     # 找到所有的出水口
     upa_arr[dir_arr != 0] = -9999
+    del dir_arr
+    gc.collect()
     outlets = np.argwhere(upa_arr > min_threshold)
     diff_neigh_num = np.zeros((outlets.shape[0],), dtype=np.int32)
     # 在出水口处打断海陆边界的连通性
@@ -122,6 +154,8 @@ def find_estuary_bump(dir_tif, upa_tif, min_threshold, bump_db):
         all_edge[loc_i, loc_j] = 0
     # 四连通域分析
     edge_label_res, edge_label_num = cfunc.label(all_edge)
+    del all_edge
+    gc.collect()
 
     ###############################
     #    计算河流入海口四邻域的信息    #
@@ -136,6 +170,8 @@ def find_estuary_bump(dir_tif, upa_tif, min_threshold, bump_db):
     label_num_arr = np.zeros(shape=(edge_label_num + 1,), dtype=np.uint32)
     label_upa_arr = np.zeros(shape=(edge_label_num + 1,), dtype=np.float32)
     calc_all_label_num_and_upa(edge_label_res, upa_arr, label_num_arr, label_upa_arr)
+    del upa_arr
+    gc.collect()
 
     ################
     #    数据入库    #
@@ -143,18 +179,9 @@ def find_estuary_bump(dir_tif, upa_tif, min_threshold, bump_db):
     # 创建数据库连接并创建表格
     conn = sqlite3.connect(bump_db)
     create_bump_table(conn)
-    dp.create_mo_table(conn)
-    dp.create_gt_table(conn)
     cursor = conn.cursor()
-    # 插入地理参考数据
-    gt_values = geo_trans + (0, 0) + dir_arr.shape
-    cursor.execute(dp.gt_sql, gt_values)
-    conn.commit()
-    # 插入入海口数据
-    for ridx, cidx in outlets:
-        mo_values = (int(ridx), int(cidx), float(upa_arr[ridx, cidx]))
-        cursor.execute(dp.mo_sql, mo_values)
-    conn.commit()
+    
+    ul_lon, w, _, ul_lat, _, h = geo_trans
     # 向数据库中中插入凸出的相关信息
     p = 1
     for i in range(outlets.shape[0]):
@@ -173,8 +200,60 @@ def find_estuary_bump(dir_tif, upa_tif, min_threshold, bump_db):
             d_label = int(edge_label_res[y + 1, x])
             d_num = int(label_num_arr[d_label])
             d_upa = float(label_upa_arr[d_label])
+               
+            bump_loc = 0
+            bump_label = 0
+            bump_idx_num = 0
+            # 面积最小的凸出部
+            min_area = 99999999
+            if min_area > u_upa > 0:
+                bump_label = u_label
+                bump_loc = 1
+                bump_idx_num = u_num
+                min_area = u_upa
+            if min_area > l_upa > 0:
+                bump_label = l_label
+                bump_loc = 2
+                bump_idx_num = l_num
+                min_area = l_upa
+            if min_area > r_upa > 0:
+                bump_label = r_label
+                bump_loc = 3
+                bump_idx_num = r_num
+                min_area = r_upa
+            if min_area > d_upa > 0:
+                bump_label = d_label
+                bump_loc = 4
+                bump_idx_num = d_num
+                min_area = d_upa
+            if bump_loc == 0 or bump_label == 0:
+                raise RuntimeError("Can't find a bump at(%d,%d)" % (y, x))
+            
+            lon = ul_lon + (x + 0.5) * w
+            lat = ul_lat + (y + 0.5) * h
+            # 输出凸出部面积最小的连通区的信息
+            if bump_idx_num > 1:
+                if bump_loc == 1:
+                    print(lon, lat, u_num, u_upa)
+                elif bump_loc == 2:
+                    print(lon, lat, l_num, l_upa)       
+                elif bump_loc == 3:
+                    print(lon, lat, r_num, r_upa)
+                else:
+                    print(lon, lat, d_num, d_upa)
+            
+            radius = 1000
+            bump_idxs = get_bump_idxs(edge_label_res, bump_label, y, x, radius)
+            while isinstance(bump_idxs, int):
+                if bump_idxs == 0:
+                    radius *= 2
+                    bump_idxs = get_bump_idxs(edge_label_res, bump_label, y, x, radius)
+                else:
+                    raise RuntimeError("Input dir .tif is too narrow!")
+            
+            
             cursor.execute(bump_sql, (
-            p, y, x, u_label, u_num, u_upa, l_label, l_num, l_upa, r_label, r_num, r_upa, d_label, d_num, d_upa))
+            p, y, x, u_label, u_num, u_upa, l_label, l_num, l_upa, r_label, r_num, r_upa, d_label, d_num, d_upa, pickle.dumps(bump_idxs)))
             p += 1
 
             # print("Location:(%d,%d); U:(%d,%d); L:(%d,%d); R(%d,%d); D(%d,%d); (%.6f,%.6f,%.6f,%.6f)" %
@@ -183,96 +262,7 @@ def find_estuary_bump(dir_tif, upa_tif, min_threshold, bump_db):
     conn.close()
 
 
-def get_transform(db_path):
-    """
-    从数据库中读取栅格数据的地理参考信息
-    :param db_path:
-    :return:
-    """
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    sql_line = "select lon, width, lon_rotate, lat, lat_rotate, height from %s;" % dp.gt_table_name
-    cursor.execute(sql_line)
-    result = cursor.fetchone()
-    conn.close()
-
-    return result
-
-
-def get_outlets(db_path):
-    """
-    从数据库中获取所有出水口信息
-    :param db_path:
-    :return:
-    """
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    sql_line = "select ridx, cidx from %s;" % dp.mo_table_name
-    cursor.execute(sql_line)
-    result = cursor.fetchall()
-
-    return result
-
-
-def check_bump(bump_db):
-    """
-    检查哪些河流入海口带有凸起，并在屏幕上输出经纬度信息
-    :param bump_db:
-    :return:
-    """
-    table_name = "bump"
-    conn = sqlite3.connect(bump_db)
-    cursor = conn.cursor()
-    cursor.execute("select * from %s;" % table_name)
-    bump_list = cursor.fetchall()
-    conn.close()
-
-    bump_num = len(bump_list)
-    print(bump_num)
-    # 计算每个bump面积最小的那一块
-    num_list = np.zeros((bump_num,), dtype=np.int32)
-    area_list = np.zeros((bump_num,), dtype=np.float32)
-    nb_loc_list = np.zeros((bump_num,), dtype=np.int32)
-
-    ul_lon, w, _, ul_lat, _, h = get_transform(bump_db)
-
-    for i in range(bump_num):
-        min_area = 99999999
-        if min_area > bump_list[i][5] > 0:
-            num_list[i] = bump_list[i][4]
-            area_list[i] = bump_list[i][5]
-            nb_loc_list[i] = 1
-            min_area = bump_list[i][5]
-        if min_area > bump_list[i][8] > 0:
-            num_list[i] = bump_list[i][7]
-            area_list[i] = bump_list[i][8]
-            nb_loc_list[i] = 2
-            min_area = bump_list[i][8]
-        if min_area > bump_list[i][11] > 0:
-            num_list[i] = bump_list[i][10]
-            area_list[i] = bump_list[i][11]
-            nb_loc_list[i] = 3
-            min_area = bump_list[i][11]
-        if min_area > bump_list[i][14] > 0:
-            num_list[i] = bump_list[i][13]
-            area_list[i] = bump_list[i][14]
-            nb_loc_list[i] = 4
-            min_area = bump_list[i][14]
-
-    for i in range(bump_num):
-        if num_list[i] > 1:
-            y = bump_list[i][1]
-            x = bump_list[i][2]
-            lon = ul_lon + (x + 0.5) * w
-            lat = ul_lat + (y + 0.5) * h
-            print(lon, lat, num_list[i], area_list[i])
-
-    return bump_list, nb_loc_list
-
-
-def resolve_bump(dir_tif, upa_tif, elv_tif, new_dir, new_upa, new_elv, bump_db):
+def resolve_bump_old(dir_tif, upa_tif, elv_tif, new_dir, new_upa, new_elv, bump_db):
     """
     去除河流入海口处的凸起
     :param dir_tif:
@@ -290,7 +280,6 @@ def resolve_bump(dir_tif, upa_tif, elv_tif, new_dir, new_upa, new_elv, bump_db):
     # 提取海陆边界
     all_edge = np.zeros(dir_arr.shape, dtype=np.uint8)
     all_edge[dir_arr == 0] = 1
-
     # 读取outlet位置索引信息，并打断连通边
     outlets = get_outlets(bump_db)
     for idx_tuple in outlets:
@@ -298,7 +287,6 @@ def resolve_bump(dir_tif, upa_tif, elv_tif, new_dir, new_upa, new_elv, bump_db):
 
     # 四连通域分析
     edge_label_res, edge_label_num = cfunc.label(all_edge)
-
     # 从数据库中查询凸出部分
     bump_list, nb_loc_list = check_bump(bump_db)
     bump_num = len(bump_list)
@@ -366,21 +354,43 @@ def resolve_bump(dir_tif, upa_tif, elv_tif, new_dir, new_upa, new_elv, bump_db):
     return 1
 
 
+def resolve_bump(src_dir, in_mask, out_mask, bump_db):
+
+    conn = sqlite3.connect(bump_db)
+    cursor = conn.cursor()
+    cursor.execute("select bump from %s;" % bump_table)
+    result = cursor.fetchall()
+    conn.close()
+
+    # 读取流向栅格数据
+    dir_arr, geo_trans, proj = raster.read_single_tif(src_dir)
+    re_dir_arr = cfunc.calc_reverse_dir(dir_arr)
+    mask_arr, _, _ = raster.read_single_tif(in_mask)
+
+    for record in result:
+        idxs = pickle.loads(record[0])
+        colors = np.zeros(shape=idxs.shape, dtype=np.uint8)
+        cfunc.paint_up_uint8(idxs, colors, re_dir_arr, mask_arr)
+        
+    raster.array2tif(out_mask, mask_arr, geo_trans, proj, nd_value=0, dtype=raster.OType.Byte)
+
+
 if __name__ == "__main__":
 
-    src_dir = r"E:\qyf\data\Asia\merge\Asia_dir.tif"
-    src_upa = r"E:\qyf\data\Asia\merge\Asia_upa.tif"
-    src_elv = r"E:\qyf\data\Asia\merge\Asia_elv.tif"
-    out_dir = r"E:\qyf\data\Asia\merge\4\4_dir.tif"
-    out_upa = r"E:\qyf\data\Asia\merge\4\4_upa.tif"
-    out_elv = r"E:\qyf\data\Asia\merge\4\4_elv.tif"
+    merge_dir = r"E:\qyf\data\Europe\merge\Europe_dir.tif"
+    merge_upa = r"E:\qyf\data\Europe\merge\Europe_upa.tif"
+    src_mask = r"E:\qyf\data\Europe\merge\Europe_dir_track_1.tif"
+    upd_mask = r"E:\qyf\data\Europe\merge\Europe_mask.tif"
 
     river_threshold = 10
-    bump_db_path = r"E:\qyf\data\Asia\merge\Asia_bump.db"
+    bump_db_path = r"E:\qyf\data\Europe\merge\2_bump.db"
 
     # 先检查凸起，不运行resolve_bump
-    # find_estuary_bump(src_dir, src_upa, river_threshold, bump_db_path)
-    # check_bump(bump_db_path)
+    # find_estuary_bump(merge_dir, merge_upa, river_threshold, bump_db_path)
+
+    # 人工检验后，去除bump
+    resolve_bump(merge_dir, src_mask, upd_mask, bump_db_path)
+
 
     # 确定没有问题后，再单独运行resolve_bump
-    resolve_bump(src_dir, src_upa, src_elv, out_dir, out_upa, out_elv, bump_db_path)
+    # resolve_bump(src_dir, src_upa, src_elv, out_dir, out_upa, out_elv, bump_db_path)

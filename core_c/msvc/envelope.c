@@ -4,7 +4,7 @@
 
 
 
-int _get_basin_envelope_uint8(unsigned char* basin, int* envelopes, int rows, int cols) {
+int _get_basin_envelope_uint8(unsigned char* __restrict basin, int* envelopes, int rows, int cols) {
 
 	uint64 idx = 0;
 	uint8 basin_code = 0;

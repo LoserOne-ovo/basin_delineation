@@ -87,6 +87,7 @@ def create_args():
                 flag = False
     else:
         print("%s not found in the config file!" % tgt_args[2])
+
         flag = False
 
     if flag is False:

@@ -4,8 +4,8 @@
 #include "sinks.h"
 
 
-int _dissolve_sinks_uint16(unsigned short* basin, unsigned char* re_dir, float* dem, unsigned long long* sink_idxs, 
-						   unsigned short sink_num, int rows, int cols, double frac) {
+int _dissolve_sinks_uint16(unsigned short* __restrict basin, unsigned char* __restrict re_dir, float* __restrict dem, 
+	unsigned long long* __restrict sink_idxs, unsigned short sink_num, int rows, int cols, double frac) {
 
 
 	uint64 idx = 0;
@@ -17,7 +17,7 @@ int _dissolve_sinks_uint16(unsigned short* basin, unsigned char* re_dir, float* 
 	}
 	uint64 RC_SIZE = 10000;
 	uint16 min_sink = 11;
-	uint16* colors = (uint16*)calloc(sink_num, sizeof(unsigned short));
+	uint16* __restrict colors = (uint16*)calloc(sink_num, sizeof(unsigned short));
 	if (colors == NULL) {
 		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
@@ -131,7 +131,7 @@ int _dissolve_sinks_uint16(unsigned short* basin, unsigned char* re_dir, float* 
 
 
 
-unsigned short* _inner_merge_u16(unsigned short* basin, float* elev, u64_List* rim_cell, unsigned short sink_num, unsigned short min_sink, const int offset[])
+unsigned short* _inner_merge_u16(unsigned short* __restrict basin, float* __restrict elev, u64_List* rim_cell, unsigned short sink_num, unsigned short min_sink, const int offset[])
 {
 	// 函数的返回结果，用于存储内流区被合并到哪个流域
 	uint16* merge_flag = (uint16*)calloc(sink_num, sizeof(uint16));
@@ -270,7 +270,7 @@ u64_List* _remove_inner_peak_u16(u64_List* src, unsigned short* basin, u16_List*
 
 
 //将两个流域的边界像元进行组合，需要重复remove_inner_peak操作
-u64_List* _eL_merge_u16(u64_List* src, u64_List* ins, unsigned short* basin, u16_List* cur_basin, const int offset[]){
+u64_List* _eL_merge_u16(u64_List* __restrict src, u64_List* __restrict ins, unsigned short* basin, u16_List* cur_basin, const int offset[]){
 
 	uint64 idx = 0;
 	uint64 all_length = src->length + ins->length;
@@ -354,8 +354,8 @@ unsigned short _find_next_basin_u16(u64_List* edge_list, float* elev, unsigned s
 
 
 
-int _dissolve_sinks_uint8(unsigned char* basin, unsigned char* re_dir, float* dem, unsigned long long* sink_idxs,
-						  unsigned char sink_num, int rows, int cols, double frac) {
+int _dissolve_sinks_uint8(unsigned char* __restrict basin, unsigned char* __restrict re_dir, float* __restrict dem, 
+	unsigned long long* __restrict sink_idxs, unsigned char sink_num, int rows, int cols, double frac) {
 
 	uint64 idx = 0;
 	uint64 cols64 = (uint64)cols;
@@ -368,7 +368,7 @@ int _dissolve_sinks_uint8(unsigned char* basin, unsigned char* re_dir, float* de
 	uint64 RC_SIZE = 10000;
 
 	uint8 min_sink = 11;
-	uint8* colors = (uint8*)calloc(sink_num, sizeof(unsigned char));
+	uint8* __restrict colors = (uint8*)calloc(sink_num, sizeof(unsigned char));
 	if (colors == NULL) {
 		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
@@ -482,7 +482,7 @@ int _dissolve_sinks_uint8(unsigned char* basin, unsigned char* re_dir, float* de
 
 
 
-unsigned char* _inner_merge_u8(unsigned char* basin, float* elev, u64_List* rim_cell, unsigned char sink_num, unsigned char min_sink, const int offset[])
+unsigned char* _inner_merge_u8(unsigned char* __restrict basin, float* __restrict elev, u64_List* rim_cell, unsigned char sink_num, unsigned char min_sink, const int offset[])
 {
 	// 函数的返回结果，用于存储内流区被合并到哪个流域
 	uint8* merge_flag = (uint8*)calloc(sink_num, sizeof(uint8));
@@ -634,7 +634,7 @@ u64_List* _remove_inner_peak_u8(u64_List* src, unsigned char* basin, u8_List* cu
 /// <param name="cur_basin"></param>
 /// <param name="offset"></param>
 /// <returns></returns>
-u64_List* _eL_merge_u8(u64_List* src, u64_List* ins, unsigned char* basin, u8_List* cur_basin, const int offset[]) {
+u64_List* _eL_merge_u8(u64_List* __restrict src, u64_List* __restrict ins, unsigned char* basin, u8_List* cur_basin, const int offset[]) {
 
 	register uint64 idx = 0;
 	uint64 all_length = src->length + ins->length;

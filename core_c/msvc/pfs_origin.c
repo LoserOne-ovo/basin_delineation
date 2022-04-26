@@ -6,7 +6,7 @@
 #include "paint_up.h"
 
 
-int _pfs_r_uint8(int outlet_ridx, int outlet_cidx, unsigned char* basin, unsigned char* re_dir, float* upa, 
+int _pfs_r_uint8(int outlet_ridx, int outlet_cidx, unsigned char* __restrict basin, unsigned char* __restrict re_dir, float* __restrict upa,
 				 int* sub_outlets, float ths, int rows, int cols) {
 
 	// 初始化
@@ -86,7 +86,7 @@ int _pfs_r_uint8(int outlet_ridx, int outlet_cidx, unsigned char* basin, unsigne
 	int basin_num = 2 * tribu_num + 1;
 
 	// 准备调色盘
-	uint8* colors = (uint8*)calloc(basin_num, sizeof(unsigned char));
+	uint8* __restrict colors = (uint8*)calloc(basin_num, sizeof(unsigned char));
 	if (colors == NULL) {
 		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);

@@ -24,7 +24,6 @@ __declspec(dllexport) int get_basin_envelope_uint8(unsigned char* basin, int* en
 }
 
 
-
 /************************************
  *           island part            *
  ************************************/
@@ -40,6 +39,11 @@ __declspec(dllexport) int update_island_label_uint32(unsigned int* island_label,
 	return _update_island_label_uint32(island_label, island_num, new_label, rows, cols);
 }
 
+
+__declspec(dllexport) int island_merge_uint8(float* center_ridx, float* center_cidx, float* radius, int island_num, unsigned char* merge_flag) {
+
+	return _island_merge(center_ridx, center_cidx, radius, island_num, merge_flag);
+}
 
 
 /***********************************
@@ -63,6 +67,13 @@ __declspec(dllexport) int paint_up_uint8(unsigned long long* idxs, unsigned char
 
 	return _paint_up_uint8(idxs, colors, idx_num, frac, basin, re_dir, rows, cols);
 }
+
+__declspec(dllexport) int paint_up_uint32(unsigned long long* idxs, unsigned int* colors, unsigned int idx_num, double frac,
+	unsigned int* basin, unsigned char* re_dir, int rows, int cols) {
+
+	return _paint_up_uint32(idxs, colors, idx_num, frac, basin, re_dir, rows, cols);
+}
+
 
 __declspec(dllexport) int paint_up_mosaiced_uint8(int* ridx, int* cidx, unsigned int num, double frac, unsigned char* basin,
 	unsigned char* re_dir, int rows, int cols) {
@@ -201,3 +212,8 @@ __declspec(dllexport) int paint_river_hillslope_int32(int* stream, int min_chann
 
 	return _paint_river_hillslope_int32(stream, min_channel_id, max_channel_id, dir, re_dir, rows, cols);
 }
+__declspec(dllexport) int check_on_mainstream(int t_ridx, int t_cidx, int inlet_ridx, int inlet_cidx, unsigned char inlet_dir, unsigned char* dir, int cols) {
+
+	return _check_on_mainstream(t_ridx, t_cidx, inlet_ridx, inlet_cidx, inlet_dir, dir, cols);
+}
+

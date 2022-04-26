@@ -69,9 +69,11 @@ def break_mask_into_tiles(lon_t, lat_t, mask_tif, out_put_folder):
 
 if __name__ == "__main__":
 
-    lon_range = (55, 155)
-    lat_range = (0, 60)
+    lon_range = (-25, 75)
+    lat_range = (10, 85)
 
-    input_mask_tif = r"E:\qyf\data\Asia\merge\Asia_dir_track.tif"
-    tile_tif_out_folder = r"E:\qyf\data\Asia\mask_tiles"
+    input_mask_tif = r"E:\qyf\data\Europe\merge\Europe_mask.tif"
+    tile_tif_out_folder = r"E:\qyf\data\Europe\mask_tiles"
     break_mask_into_tiles(lon_range, lat_range, input_mask_tif, tile_tif_out_folder)
+    
+    

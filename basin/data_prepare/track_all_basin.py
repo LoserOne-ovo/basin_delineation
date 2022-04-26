@@ -3,7 +3,7 @@ sys.path.append(r"../../")
 import numpy as np
 from util import raster
 from util import interface as cfunc
-from osgeo import ogr
+from osgeo import ogr, osr
 
 
 # 矩阵索引转经纬度
@@ -30,7 +30,7 @@ def get_point_within_shp(shp_fn, cor_list, idx_arr):
     for feature in layer:
         geom = feature.GetGeometryRef()   
         for i in range(point_num):
-            print(i)
+            print("%d of %d" % (i, point_num))
             if within_flag[i] == 0:
                 p_geom = ogr.Geometry(ogr.wkbPoint)
                 p_geom.AddPoint(cor_list[i][0], cor_list[i][1])
@@ -49,16 +49,83 @@ def get_point_within_shp(shp_fn, cor_list, idx_arr):
     return within_idxs
 
 
+def sink_bottom_to_shp(dir_tif, out_shp):
+
+    # 读取流向栅格数据
+    dir_arr, geo_trans, proj = raster.read_single_tif(dir_tif)
+    # 提取所有的内流区终点
+    sink_bottom_idxs = np.argwhere(dir_arr == 255)
+    # 计算所有内流区终点的经纬度
+    sink_bottom_cors = [idx2cor(ridx, cidx, geo_trans) for ridx, cidx in sink_bottom_idxs]
+
+    driver = ogr.GetDriverByName("ESRI Shapefile")
+    ds = driver.CreateDataSource(out_shp)
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    layer = ds.CreateLayer("sink_bottom", srs=srs, geom_type=ogr.wkbPoint)
+    FieldDefn = ogr.FieldDefn("ridx", ogr.OFTInteger)
+    layer.CreateField(FieldDefn)
+    FieldDefn = ogr.FieldDefn("cidx", ogr.OFTInteger)
+    layer.CreateField(FieldDefn)
+    featureDefn = layer.GetLayerDefn()
+
+    for i in range(len(sink_bottom_cors)):
+        lon, lat = sink_bottom_cors[i]
+        ridx, cidx = sink_bottom_idxs[i]
+        geom = ogr.Geometry(ogr.wkbPoint)
+        geom.AddPoint(lon, lat)
+        feature = ogr.Feature(featureDefn)
+        feature.SetGeometry(geom)
+        feature.SetField("ridx", int(ridx))
+        feature.SetField("cidx", int(cidx))
+        layer.CreateFeature(feature)
+        
+    layer.SyncToDisk()
+    ds.Destroy()
+
+
+def track_basin(dir_tif, in_shp, out_tif):
+
+    ds = ogr.Open(in_shp)
+    layer = ds.GetLayer()
+    point_num = layer.GetFeatureCount()
+    
+    probe = 0
+    within_sb_idxs = np.empty((point_num, 2), dtype=np.uint64)
+    for feature in layer:
+        within_sb_idxs[probe, 0] = feature.GetField("ridx")
+        within_sb_idxs[probe, 1] = feature.GetField("cidx")
+        probe += 1
+    ds.Destroy()
+
+    # 读取流向栅格数据
+    dir_arr, geo_trans, proj = raster.read_single_tif(dir_tif)
+    # 提取所有的外流区终点
+    edge_idxs = np.argwhere(dir_arr == 0)
+
+    # 合并所有的流域终点
+    all_idxs = np.concatenate((within_sb_idxs, edge_idxs), axis=0).astype(np.uint64)
+    paint_idxs = all_idxs[:, 0] * dir_arr.shape[1] + all_idxs[:, 1]
+    all_colors = np.ones(shape=(all_idxs.shape[0], ), dtype=np.uint8)
+    # 追踪上游
+    re_dir_arr = cfunc.calc_reverse_dir(dir_arr)
+    mask_arr = np.zeros(shape=dir_arr.shape, dtype=np.uint8)
+    cfunc.paint_up_uint8(paint_idxs, all_colors, re_dir_arr, mask_arr)
+
+    # 输出结果栅格文件
+    raster.array2tif(out_tif, mask_arr, geo_trans, proj, nd_value=0, dtype=1)
+
+
+
 def main(bound_shp, dir_tif, out_tif):
 
     # 读取流向栅格数据
     dir_arr, geo_trans, proj = raster.read_single_tif(dir_tif)
-
     # 提取所有的内流区终点
     sink_bottom_idxs = np.argwhere(dir_arr == 255)
-
     # 计算所有内流区终点的经纬度
     sink_bottom_cors = [idx2cor(ridx, cidx, geo_trans) for ridx, cidx in sink_bottom_idxs]
+    
     # 计算所有位于多边形内部的内流区终点
     within_sb_idxs = get_point_within_shp(bound_shp, sink_bottom_cors, sink_bottom_idxs)
 
@@ -84,14 +151,52 @@ def main(bound_shp, dir_tif, out_tif):
     return 1
 
 
+def modify_sink(in_shp, dir_tif, src_track, upd_track, upd_value):
+
+    
+    ds = ogr.Open(in_shp)
+    layer = ds.GetLayer()
+    point_list = []
+    for feature in layer:
+        point = feature.GetGeometryRef()
+        lon = point.GetX()
+        lat = point.GetY()
+        point_list.append((lon, lat))
+    ds.Destroy()
+
+    dir_arr, geo_trans, proj = raster.read_single_tif(dir_tif)
+    modify_idxs = raster.cor2idx_list(point_list, geo_trans)
+    modify_idxs = np.array(modify_idxs, dtype=np.uint64)
+    paint_idxs = modify_idxs[:, 0] * dir_arr.shape[1] + modify_idxs[:, 1]
+    all_colors = np.empty(shape=(paint_idxs.shape[0], ), dtype=np.uint8)
+    all_colors[:] = upd_value
+    # 追踪上游
+    re_dir_arr = cfunc.calc_reverse_dir(dir_arr)
+    mask_arr, _, _ = raster.read_single_tif(src_track)
+    cfunc.paint_up_uint8(paint_idxs, all_colors, re_dir_arr, mask_arr)
+
+    # 输出结果栅格文件
+    raster.array2tif(upd_track, mask_arr, geo_trans, proj, nd_value=0, dtype=1)
+
+
 if __name__ == "__main__":
 
 
-    basin_shp = r"E:\qyf\data\Asia\shp\hybas_as_lev01_v1c.shp"
-    dir_fn = r"E:\qyf\data\Asia\merge\Asia_mask_dir_merge.tif"
-    out_fn = r"E:\qyf\data\Asia\merge\Asia_dir_track.tif"
+    basin_shp = r"E:\qyf\data\Europe\shp\hybas_eu_lev01_v1c.shp"
+    dir_fn = r"E:\qyf\data\Europe\merge\Europe_clip_dir_1_cb.tif"
+    out_fn = r"E:\qyf\data\Europe\merge\Europe_dir_track.tif"
+    output_sb_shp = r"E:\qyf\data\Europe\shp\out_sb.shp"
+    input_sb_shp = r"E:\qyf\data\Europe\shp\in_sb.shp"
+    modify_shp = r"E:\qyf\data\Europe\shp\modify.shp"
+    modify_fn = r"E:\qyf\data\Europe\merge\Europe_dir_track_1.tif"
 
-    main(basin_shp, dir_fn, out_fn)
+
+
+    # sink_bottom_to_shp(dir_fn, output_sb_shp)
+    # track_basin(dir_fn, input_sb_shp, out_fn)
+    modify_sink(modify_shp, dir_fn, out_fn, modify_fn, 1)
+
+    # main(basin_shp, dir_fn, out_fn)
 
 
 

@@ -1,4 +1,4 @@
-import os.path
+import os
 import sys
 sys.path.append(r"../../")
 import numpy as np
@@ -23,10 +23,8 @@ def get_tile_prefix(lat, lon):
     return str_lat + str_lon
 
 
-def merge_tile(lon_t, lat_t, mask_tile_folder, src_tile_folder, merge_fn, src_type):
+def merge_tile(lon_t, lat_t, root, out_path, src_type):
 
-
-    # 初始化辅助变量
     min_lat, max_lat = lat_t
     min_lon, max_lon = lon_t
     offset_i = 0
@@ -61,12 +59,9 @@ def merge_tile(lon_t, lat_t, mask_tile_folder, src_tile_folder, merge_fn, src_ty
         for j in range(min_lon, max_lon, 5):
             # 当前范围是否有数据
             prefix = get_tile_prefix(i, j)
-            mask_tile_fn = os.path.join(mask_tile_folder, prefix + "_mask.tif")
-            if os.path.isfile(mask_tile_fn):
-                src_tile_fn = os.path.join(src_tile_folder, prefix + suffix_fn)
-                if not os.path.isfile(src_tile_fn):
-                    raise IOError("Missing src tile %s!" % src_tile_fn)
-                mask_arr, geo_trans, proj = raster.read_single_tif(mask_tile_fn)
+            src_tile_fn = os.path.join(root, prefix + suffix_fn)
+            if os.path.isfile(src_tile_fn):
+                src_arr, geo_trans, proj = raster.read_single_tif(src_tile_fn)
                 if bench_flag is False:
                     ul_lon, width, lon_r, ul_lat, lat_r, height = geo_trans
                     bench_ul_lon = ul_lon - (((j - min_lon) / 5) * s_shape[1]) * width
@@ -74,8 +69,6 @@ def merge_tile(lon_t, lat_t, mask_tile_folder, src_tile_folder, merge_fn, src_ty
                     bench_geotrans = (bench_ul_lon, width, lon_r, bench_ul_lat, lat_r, height)
                     bench_proj = proj
                     bench_flag = True
-                src_arr, _, _ = raster.read_single_tif(src_tile_fn)
-                src_arr[mask_arr == 0] = src_nodata
                 merge_arr[offset_i:offset_i+s_shape[0], offset_j:offset_j+s_shape[1]] = src_arr
             else:
                 src_arr = np.full(shape=s_shape, fill_value=src_nodata, dtype=src_dtype)
@@ -83,32 +76,29 @@ def merge_tile(lon_t, lat_t, mask_tile_folder, src_tile_folder, merge_fn, src_ty
             offset_j += s_shape[1]
         offset_i += s_shape[0]
 
-    raster.array2tif(merge_fn, merge_arr, bench_geotrans, bench_proj, nd_value=src_nodata, dtype=out_dtype)
+    raster.array2tif(out_path, merge_arr, bench_geotrans, bench_proj, nd_value=src_nodata, dtype=out_dtype)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 
-
+    
     lon_range = (-25, 75)
     lat_range = (10, 85)
-    mask_folder = r"E:\qyf\data\Europe\mask_tiles"
-
+    
     # dir
-    # src_dir_folder = r"E:\qyf\data\Europe\src\dir"
-    # out_dir_fn = r"E:\qyf\data\Europe\merge\2_dir.tif"
-    # merge_tile(lon_range, lat_range, mask_folder, src_dir_folder, out_dir_fn, 1)
+    src_dir_folder = r"E:\qyf\data\Europe\src\dir"
+    out_dir_fn = r"E:\qyf\data\Europe\merge\Europe_merge_dir.tif"
+    merge_tile(lon_range, lat_range, src_dir_folder, out_dir_fn, 1)
     
     # upa
     # src_upa_folder = r"E:\qyf\data\Europe\src\upa"
-    # out_upa_fn = r"E:\qyf\data\Europe\merge\2_upa.tif"
-    # merge_tile(lon_range, lat_range, mask_folder, src_upa_folder, out_upa_fn, 2)
-
+    # out_upa_fn = r"E:\qyf\data\Europe\merge\Europe_merge_upa.tif"
+    # merge_tile(lon_range, lat_range, src_upa_folder, out_upa_fn, 2)
+    
     # elv
-    src_elv_folder = r"E:\qyf\data\Europe\src\elv"
-    out_elv_fn = r"E:\qyf\data\Europe\merge\2_elv.tif"
-    merge_tile(lon_range, lat_range, mask_folder, src_elv_folder, out_elv_fn, 3)
-
-
-
-
+    # src_elv_folder = r"E:\qyf\data\Europe\src\elv"
+    # out_elv_fn = r"E:\qyf\data\Europe\merge\Europe_merge_elv.tif"
+    # merge_tile(lon_range, lat_range, src_elv_folder, out_elv_fn, 3)
+    
+    
 

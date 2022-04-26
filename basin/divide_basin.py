@@ -300,7 +300,7 @@ def divide_basin_4(folder, code, sink_num, island_num, threshold):
     :return:
     """
 
-    db_path = os.path.join(folder + code + ".db")
+    db_path = os.path.join(folder, code + ".db")
     # 读取流域出口信息、流域面积信息和内流区信息
     outlets, outlet_num, sinks, sink_num, islands, island_num, m_islands, m_island_num, i_sinks, i_sink_num = \
         dp.get_outlet_4(db_path, sink_num, island_num)
@@ -651,7 +651,6 @@ def sup_coding(temp_code_num, area_ths, sinks, di_sink_num, sink_num, islands, d
 
 
 def island_merge(islands, island_num, island_merge_flag, coded_islands, di_island_num, basin_arr):
-
 
     # 如果没有编码岛屿，直接赋值到最邻近的大陆流域
     if di_island_num == 0:
