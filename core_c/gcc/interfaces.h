@@ -17,8 +17,11 @@ int _get_basin_envelope_uint8(unsigned char* basin, int* envelopes, int rows, in
  ***********************************/
 
  // 统计岛屿相关属性
-int _calc_island_statistics_uint32(unsigned int* island_label, unsigned int island_num, float* center, int* sample, float* radius,
-	float* area, float* ref_area, int* envelope, unsigned char* dir, float* upa, int rows, int cols);
+int _calc_island_statistics_uint32(unsigned int*restrict island_label, unsigned int island_num, 
+								   float*restrict center, int*restrict sample,
+	                               float*restrict area, float*restrict ref_area,
+								   int*restrict envelope, unsigned char*restrict dir, 
+								   float*restrict upa, int rows, int cols);
 int _update_island_label_uint32(unsigned int* island_label, unsigned int island_num, unsigned int* new_label, int rows, int cols);
 
 

@@ -8,19 +8,19 @@
  *          shared part            *
  ***********************************/
 
-__declspec(dllexport) unsigned int* label_4con(unsigned char* bin_ima, int rows, int cols, unsigned int* label_num) {
+unsigned int* label_4con(unsigned char* bin_ima, int rows, int cols, unsigned int* label_num) {
 
 	return _label_4con(bin_ima, rows, cols, label_num);
 }
 
 
-__declspec(dllexport) unsigned char* calc_reverse_fdir(unsigned char* fdir, int rows, int cols) {
+unsigned char* calc_reverse_fdir(unsigned char* fdir, int rows, int cols) {
 
 	return _get_re_dir(fdir, rows, cols);
 }
 
 
-__declspec(dllexport) unsigned char* get_basin_envelope_uint8(unsigned char* basin, int* envelopes, int rows, int cols) {
+int get_basin_envelope_uint8(unsigned char* basin, int* envelopes, int rows, int cols) {
 
 	return _get_basin_envelope_uint8(basin, envelopes, rows, cols);
 }
@@ -31,14 +31,14 @@ __declspec(dllexport) unsigned char* get_basin_envelope_uint8(unsigned char* bas
  *           island part            *
  ************************************/
 
-__declspec(dllexport) int island_statistic_uint32(unsigned int* island_label, unsigned int island_num, float* center, int* sample,  float* radius,
-	float* area, float* ref_area, int* envelope, unsigned char* dir, float* upa, int rows, int cols) {
+int island_statistic_uint32(unsigned int* island_label, unsigned int island_num, float* center, int* sample,
+							float* area, float* ref_area, int* envelope, unsigned char* dir, float* upa, int rows, int cols) {
 
-	return _calc_island_statistics_uint32(island_label, island_num, center, sample, radius, area, ref_area, envelope, dir, upa, rows, cols);
+	return _calc_island_statistics_uint32(island_label, island_num, center, sample, area, ref_area, envelope, dir, upa, rows, cols);
 }
 
 
-__declspec(dllexport) int update_island_label_uint32(unsigned int* island_label, unsigned int* new_label, unsigned int island_num, int rows, int cols) {
+int update_island_label_uint32(unsigned int* island_label, unsigned int* new_label, unsigned int island_num, int rows, int cols) {
 
 	return _update_island_label_uint32(island_label, island_num, new_label, rows, cols);
 }
@@ -50,8 +50,8 @@ __declspec(dllexport) int update_island_label_uint32(unsigned int* island_label,
  *          outlet part            *
  ***********************************/
 
-__declspec(dllexport) int pfafstetter(int outlet_ridx, int outlet_cidx, unsigned char* basin, unsigned char* re_dir, float* upa,
-									  int* sub_outlets, float ths, int rows, int cols) {
+int pfafstetter(int outlet_ridx, int outlet_cidx, unsigned char* basin, unsigned char* re_dir, float* upa,
+			    int* sub_outlets, float ths, int rows, int cols) {
 
 	return _pfs_r_uint8(outlet_ridx, outlet_cidx, basin, re_dir, upa, sub_outlets, ths, rows, cols);
 }
@@ -63,15 +63,15 @@ __declspec(dllexport) int pfafstetter(int outlet_ridx, int outlet_cidx, unsigned
  *           paint part            *
  ***********************************/
 
-__declspec(dllexport) int paint_up_uint8(unsigned long long* idxs, unsigned char* colors, unsigned int idx_num, double frac,
-										 unsigned char* basin, unsigned char* re_dir, int rows, int cols) {
+int paint_up_uint8(unsigned long long* idxs, unsigned char* colors, unsigned int idx_num, double frac,
+				   unsigned char* basin, unsigned char* re_dir, int rows, int cols) {
 
 	return _paint_up_uint8(idxs, colors, idx_num, frac, basin, re_dir, rows, cols);
 }
 
 
-__declspec(dllexport) int paint_up_mosaiced_uint8(int* ridx, int* cidx, unsigned int num, double frac, unsigned char* basin, unsigned char* re_dir,
-	int rows, int cols) {
+int paint_up_mosaiced_uint8(int* ridx, int* cidx, unsigned int num, double frac, unsigned char* basin, 
+						    unsigned char* re_dir, int rows, int cols) {
 
 
 	uint64 cols64 = (uint64)cols;
@@ -105,14 +105,14 @@ __declspec(dllexport) int paint_up_mosaiced_uint8(int* ridx, int* cidx, unsigned
  *           sink part             *
  ***********************************/
 
-__declspec(dllexport) int dissolve_sinks_uint8(unsigned char* basin, unsigned char* re_dir, float* dem, unsigned long long* sink_idxs,
-	unsigned char sink_num, int rows, int cols, double frac) {
+int dissolve_sinks_uint8(unsigned char* basin, unsigned char* re_dir, float* dem, unsigned long long* sink_idxs,
+						 unsigned char sink_num, int rows, int cols, double frac) {
 
 	return _dissolve_sinks_uint8(basin, re_dir, dem, sink_idxs, sink_num, rows, cols, frac);
 }
 
-__declspec(dllexport) int dissolve_sinks_uint16(unsigned short* basin, unsigned char* re_dir, float* dem, unsigned long long* sink_idxs,
-	unsigned short sink_num, int rows, int cols, double frac) {
+int dissolve_sinks_uint16(unsigned short* basin, unsigned char* re_dir, float* dem, unsigned long long* sink_idxs,
+						  unsigned short sink_num, int rows, int cols, double frac) {
 
 	return _dissolve_sinks_uint16(basin, re_dir, dem, sink_idxs, sink_num, rows, cols, frac);
 }

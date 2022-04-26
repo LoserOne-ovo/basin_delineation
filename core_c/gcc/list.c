@@ -9,7 +9,7 @@ int u8_List_append(u8_List* src, unsigned char elem) {
 		unsigned long long newsize = src->alloc_length + src->batch_size;
 		unsigned char* newList = (unsigned char*)realloc(src->List, newsize * sizeof(unsigned char));
 		if (newList == NULL) {
-			fprintf(stderr, "Memory reallocation failed in line %d of list.c \r\n", __LINE__);
+			fprintf(stderr, "memory allocation failed in %s at line %d!\n", __FILE__, __LINE__);
 			exit(-1);
 		}
 		src->List = newList;
@@ -28,7 +28,7 @@ int u16_List_append(u16_List* src, unsigned short elem) {
 		unsigned long long newsize = src->alloc_length + src->batch_size;
 		unsigned short* newList = (unsigned short*)realloc(src->List, newsize * sizeof(unsigned short));
 		if (newList == NULL) {
-			fprintf(stderr, "Memory reallocation failed in line %d of list.c \r\n", __LINE__);
+			fprintf(stderr, "memory allocation failed in %s at line %d!\n", __FILE__, __LINE__);
 			exit(-1);
 		}
 		src->List = newList;
@@ -47,7 +47,7 @@ int u32_List_append(u32_List* src, unsigned int elem) {
 		unsigned long long newsize = src->alloc_length + src->batch_size;
 		unsigned int* newList = (unsigned int*)realloc(src->List, newsize * sizeof(unsigned int));
 		if (newList == NULL) {
-			fprintf(stderr, "Memory reallocation failed in line %d of list.c \r\n", __LINE__);
+			fprintf(stderr, "memory allocation failed in %s at line %d!\n", __FILE__, __LINE__);
 			exit(-1);
 		}
 		src->List = newList;
@@ -66,7 +66,7 @@ int u64_List_append(u64_List* src, unsigned long long elem) {
 		unsigned long long newsize = src->alloc_length + src->batch_size;
 		unsigned long long* newList = (unsigned long long*)realloc(src->List, newsize * sizeof(unsigned long long));
 		if (newList == NULL) {
-			fprintf(stderr, "Memory reallocation failed in line %d of list.c \r\n", __LINE__);
+			fprintf(stderr, "memory allocation failed in %s at line %d!\n", __FILE__, __LINE__);
 			exit(-1);
 		}
 		src->List = newList;
@@ -86,7 +86,7 @@ int i32_List_append(i32_List* src, int elem) {
 		unsigned long long newsize = src->alloc_length + src->batch_size;
 		unsigned int* newList = (unsigned int*)realloc(src->List, newsize * sizeof(int));
 		if (newList == NULL) {
-			fprintf(stderr, "Memory reallocation failed in line %d of list.c \r\n", __LINE__);
+			fprintf(stderr, "memory allocation failed in %s at line %d!\n", __FILE__, __LINE__);
 			exit(-1);
 		}
 		src->List = newList;

@@ -6,13 +6,15 @@
 
 
 
-int _calc_island_statistics_uint32(unsigned int* island_label, unsigned int island_num, float* center, int* sample, float* radius,
-	                               float* area, float* ref_area, int* envelope, unsigned char* dir, float* upa, int rows, int cols) {
+int _calc_island_statistics_uint32(unsigned int*restrict island_label, unsigned int island_num, 
+								   float*restrict center, int*restrict sample,
+	                               float*restrict area, float*restrict ref_area,
+								   int*restrict envelope, unsigned char*restrict dir, 
+								   float*restrict upa, int rows, int cols) {
 
 	/*
 		center:   shape = (island_num * 2), dtype=float，岛屿外包矩形中心的位置索引
 		sample:   shape = (island_num * 2), dtype=int，  岛屿样点的位置索引
-		radius:   shape = (island_num * 1), dtype=float，岛屿外包矩形的半径
 		area:     shape = (island_num * 1), dtype=float，岛屿外流区的面积
 		ref_area: shape = (island_num * 1), dtype=float，岛屿单个像元的参考面积
 		envelope: shape = (island_num * 4), dtype=int，  岛屿的外包矩形
@@ -27,7 +29,7 @@ int _calc_island_statistics_uint32(unsigned int* island_label, unsigned int isla
 
 
 	// 标记数组，标记岛屿样点是否已经采集
-	uint8* sample_flag = (uint8*)calloc(island_num, sizeof(uint8));
+	uint8* __restrict sample_flag = (uint8*)calloc(island_num, sizeof(uint8));
 	if (sample_flag == NULL) {
 		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
 		exit(-1);
@@ -62,9 +64,8 @@ int _calc_island_statistics_uint32(unsigned int* island_label, unsigned int isla
 	}
 
 	// 计算外包矩形中心和半径
-	uint center_probe = 0, radius_probe = 0;
+	uint center_probe = 0;
 	float ref_cell_area = 0.f;
-	float PI = 3.1415926F;
 	uint64 cols64 = (uint64)cols;
 	uint64 center_idx = 0, temp_idx = 0;
 	
@@ -86,11 +87,9 @@ int _calc_island_statistics_uint32(unsigned int* island_label, unsigned int isla
 				ref_cell_area -= upa[temp_idx];
 			}
 		}
-		radius[radius_probe] = sqrtf(area[radius_probe] / (ref_cell_area * PI));
-		ref_area[radius_probe] = ref_cell_area;
+		ref_area[(int)(center_probe / 2)] = ref_cell_area;
 
 		center_probe += 2;
-		radius_probe++;
 	}
 
 	// 释放内存

@@ -25,7 +25,7 @@ int _paint_up_uint8(unsigned long long* idxs, unsigned char* colors, unsigned in
 	u64_List stack = { 0,0,STACK_SIZE,NULL };
 	stack.List = (uint64*)calloc(STACK_SIZE, sizeof(uint64));
 	if (stack.List == NULL) {
-		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	stack.alloc_length = STACK_SIZE;
@@ -86,7 +86,7 @@ int _paint_up_uint16(unsigned long long* idxs, unsigned short* colors, unsigned 
 	u64_List stack = { 0,0,STACK_SIZE,NULL };
 	stack.List = (uint64*)calloc(STACK_SIZE, sizeof(uint64));
 	if (stack.List == NULL) {
-		fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
+		fprintf(stderr, "memory allocation failed in %s at line %d!\n", __FILE__, __LINE__);
 		exit(-1);
 	}
 	stack.alloc_length = STACK_SIZE;

@@ -19,18 +19,16 @@ int _get_basin_envelope_uint8(unsigned char* basin, int* envelopes, int rows, in
 				if (i < envelopes[tuple_probe]) {
 					envelopes[tuple_probe] = i;
 				}
-				else if (i > envelopes[tuple_probe + 2]) {
+				if (i > envelopes[tuple_probe + 2]) {
 					envelopes[tuple_probe + 2] = i;
 				}
-				else { ; }
 
 				if (j < envelopes[tuple_probe + 1]) {
 					envelopes[tuple_probe + 1] = j;
 				}
-				else if (j > envelopes[tuple_probe + 3]) {
+				if (j > envelopes[tuple_probe + 3]) {
 					envelopes[tuple_probe + 3] = j;
 				}
-				else { ; }
 			}
 			++idx;
 		}

@@ -1,19 +1,19 @@
 import gc
 import os
 import sys
-import numpy as np
-from rtree import index
-from db_op import *
-from file_op import clone_basin
-from interface import *
 sys.path.append("..")
-from util.raster import read_tif_files, array2tif, raster2shp_mem
+import math
+import sqlite3
+import numpy as np
+import db_op as dp
+import file_op as fp
+from rtree import index
+from util import raster
+from util import interface as cfunc
 from numba import jit
-import time
 
 
-
-def divide_basin_1or2(folder, code, bas_type, sink_num, threshold, stat_db_path, sql_statement):
+def divide_basin_1or2(folder, code, bas_type, sink_num, threshold):
     """
 
     :param folder:
@@ -21,27 +21,24 @@ def divide_basin_1or2(folder, code, bas_type, sink_num, threshold, stat_db_path,
     :param bas_type:
     :param sink_num:
     :param threshold:
-    :param stat_db_path:
-    :param sql_statement:
     :return:
     """
 
     # 读取流域出口信息、流域面积信息和内流区信息
     db_path = os.path.join(folder, code + '.db')
-    outlet_idx, area, sinks = get_outlet_1(db_path, sink_num)
-    ul_offset = get_ul_offset(db_path)
+    outlet_idx, area, sinks = dp.get_outlet_1(db_path, sink_num)
+    ul_offset = dp.get_ul_offset(db_path)
 
     # 读取栅格数据
-    dir_arr, upa_arr, elv_arr, geotransform, proj = read_tif_files(folder, code, 1)
-
+    dir_arr, upa_arr, elv_arr, geotransform, proj = raster.read_tif_files(folder, code, 1)
     # 流域划分
     basin, sub_num, b_types, b_areas, b_outlets, b_envelopes, sink_merge_flag, other_sinks = \
         divide_1or2(outlet_idx, bas_type, dir_arr, upa_arr, elv_arr, threshold, area, sinks, sink_num)
 
     # 分割流域，并保存为新的输入
     result = break_into_sub_basins(basin, dir_arr, upa_arr, elv_arr, sub_num, b_types, b_areas, b_outlets, b_envelopes,
-                          None, None, sink_merge_flag, other_sinks, None, None, None, None, None, None,
-                          ul_offset, geotransform, proj, threshold, code, folder, stat_db_path, sql_statement)
+                                   None, None, sink_merge_flag, other_sinks, None, None, None, None, None, None,
+                                   ul_offset, geotransform, proj, threshold, code, folder)
 
     return result
 
@@ -76,9 +73,10 @@ def divide_1or2(outlet_idx, bas_type, dir_arr, upa_arr, elv_arr, threshold, area
     basin = np.zeros((rows, cols), dtype=np.uint8)
 
     # 计算逆d8流向
-    re_dir_arr = calc_reverse_dir(dir_arr)
+    re_dir_arr = cfunc.calc_reverse_dir(dir_arr)
     # pfafstetter编码划分子流域
-    sub_num = pfafstetter(outlet_idx, basin, re_dir_arr, upa_arr, sub_outlet_idxs, threshold)
+    sub_num = cfunc.pfafstetter(outlet_idx, basin, re_dir_arr, upa_arr, sub_outlet_idxs, threshold)
+
     # 设置流域类型列表，奇数编号（索引为偶数）为有上游的外流区，偶数标号（索引为奇数）为无上游的外流区
     btype_list[1] = 2
     for i in range(2, sub_num + 1, 2):
@@ -127,7 +125,7 @@ def divide_1or2(outlet_idx, bas_type, dir_arr, upa_arr, elv_arr, threshold, area
         for i in range(main_sink_num):
             main_sink_idxs[i] = sinks[i][1] * cols + sinks[i][2]
         colors = np.arange(sub_num + 1 - main_sink_num, sub_num + 1, 1, dtype=np.uint8)
-        paint_up_uint8(main_sink_idxs, colors, re_dir_arr, basin)
+        cfunc.paint_up_uint8(main_sink_idxs, colors, re_dir_arr, basin)
 
     # 判断是否其他无法编码的外流区要合并
     if other_sink_num > 0:
@@ -136,12 +134,12 @@ def divide_1or2(outlet_idx, bas_type, dir_arr, upa_arr, elv_arr, threshold, area
             other_sink_idxs[i] = other_sinks[i][1] * cols + other_sinks[i][2]
         # 内流区数量少于245，使用unsigned char
         if other_sink_num < 245:
-            sink_merge_uint8(other_sink_idxs, re_dir_arr, elv_arr, basin)
+            cfunc.sink_merge_uint8(other_sink_idxs, re_dir_arr, elv_arr, basin)
         # 内流区数量大于245，使用unsigned short
         # 超过65525，则在开始时就抛出错误
         else:
             basin = basin.astype(np.uint16)
-            sink_merge_uint16(other_sink_idxs, re_dir_arr, elv_arr, basin)
+            cfunc.sink_merge_uint16(other_sink_idxs, re_dir_arr, elv_arr, basin)
             basin = basin.astype(np.uint8)
 
     # 记录内流区的合并情况
@@ -150,12 +148,12 @@ def divide_1or2(outlet_idx, bas_type, dir_arr, upa_arr, elv_arr, threshold, area
         sink_merge_flag[i] = basin[other_sinks[i][1], other_sinks[i][2]]
 
     # 计算子流域外包矩形
-    get_basin_envelopes(basin, envelopes)
+    cfunc.get_basin_envelopes(basin, envelopes)
 
     return basin, sub_num, btype_list, barea_list, sub_outlet_idxs, envelopes, sink_merge_flag, other_sinks
 
 
-def divide_basin_3(folder, code, bas_type, sink_num, threshold, stat_db_path, sql_statement):
+def divide_basin_3(folder, code, bas_type, sink_num, threshold):
     """
 
     :param folder:
@@ -163,15 +161,13 @@ def divide_basin_3(folder, code, bas_type, sink_num, threshold, stat_db_path, sq
     :param bas_type:
     :param sink_num:
     :param threshold:
-    :param stat_db_path:
-    :param sql_statement:
     :return:
     """
 
     # 读取流域出口信息、流域面积信息和内流区信息
     db_path = os.path.join(folder, code + '.db')
-    outlet_idx, area, sinks = get_outlet_1(db_path, sink_num)
-    ul_offset = get_ul_offset(db_path)
+    outlet_idx, area, sinks = dp.get_outlet_1(db_path, sink_num)
+    ul_offset = dp.get_ul_offset(db_path)
 
     # 判断合并到该内流区的其他内流区是否足够大
     critical_area = area / 9
@@ -184,7 +180,7 @@ def divide_basin_3(folder, code, bas_type, sink_num, threshold, stat_db_path, sq
                 break
 
     # 读取栅格数据
-    dir_arr, upa_arr, elv_arr, geotransform, proj = read_tif_files(folder, code, 1)
+    dir_arr, upa_arr, elv_arr, geotransform, proj = raster.read_tif_files(folder, code, 1)
 
     # 如果足够大的内流区的数量小于2，则把内流区当成一个完整流域处理
     if critical_count < 2:
@@ -197,8 +193,8 @@ def divide_basin_3(folder, code, bas_type, sink_num, threshold, stat_db_path, sq
 
     # 分割流域，并保存为新的输入
     result = break_into_sub_basins(basin, dir_arr, upa_arr, elv_arr, sub_num, b_types, b_areas, b_outlets, b_envelopes,
-                          None, None, sink_merge_flag, other_sinks, None, None, None, None, None, None,
-                          ul_offset, geotransform, proj, threshold, code, folder, stat_db_path, sql_statement)
+                                   None, None, sink_merge_flag, other_sinks, None, None, None, None, None, None,
+                                   ul_offset, geotransform, proj, threshold, code, folder)
 
     return result
 
@@ -257,15 +253,14 @@ def divide_3(outlet_idx, dir_arr, elv_arr, area, sinks, sinks_num, depart_num):
         other_sinks = None
 
     # 计算逆流向和初始化流域划分结果
-    re_dir_arr = calc_reverse_dir(dir_arr)
-    basin = np.zeros(dir_arr.shape, dtype=np.uint8)
+    re_dir_arr = cfunc.calc_reverse_dir(dir_arr)
 
     # 为参与编码的内流区上色
     coded_sink_idxs = np.zeros((sub_num,), dtype=np.uint64)
     for i in range(1, sub_num + 1):
         coded_sink_idxs[i - 1] = sub_outlet_idxs[i, 0] * cols + sub_outlet_idxs[i, 1]
     colors = np.arange(1, sub_num + 1, 1, dtype=np.uint8)
-    paint_up_uint8(coded_sink_idxs, colors, re_dir_arr, basin)
+    cfunc.paint_up_uint8(coded_sink_idxs, colors, re_dir_arr, basin)
 
     # 判断是否其他无法编码的外流区要合并
     if other_sink_num > 0:
@@ -274,12 +269,12 @@ def divide_3(outlet_idx, dir_arr, elv_arr, area, sinks, sinks_num, depart_num):
             other_sink_idxs[i] = other_sinks[i][1] * cols + other_sinks[i][2]
         # 内流区数量少于245，使用unsigned char
         if other_sink_num < 245:
-            sink_merge_uint8(other_sink_idxs, re_dir_arr, elv_arr, basin)
+            cfunc.sink_merge_uint8(other_sink_idxs, re_dir_arr, elv_arr, basin)
         # 内流区数量大于245，使用unsigned short
         # 超过65525，则在开始时就抛出错误
         else:
             basin = basin.astype(np.uint16)
-            sink_merge_uint16(other_sink_idxs, re_dir_arr, elv_arr, basin)
+            cfunc.sink_merge_uint16(other_sink_idxs, re_dir_arr, elv_arr, basin)
             basin = basin.astype(np.uint8)
 
     # 记录内流区的合并情况
@@ -288,12 +283,12 @@ def divide_3(outlet_idx, dir_arr, elv_arr, area, sinks, sinks_num, depart_num):
         sink_merge_flag[i] = basin[other_sinks[i][1], other_sinks[i][2]]
 
     # 计算子流域外包矩形
-    get_basin_envelopes(basin, envelopes)
-    
+    cfunc.get_basin_envelopes(basin, envelopes)
+
     return basin, sub_num, btype_list, barea_list, sub_outlet_idxs, envelopes, sink_merge_flag, other_sinks
 
 
-def divide_basin_4(folder, code, sink_num, island_num, threshold, stat_db_path, sql_statement):
+def divide_basin_4(folder, code, sink_num, island_num, threshold):
     """
 
     :param folder:
@@ -301,19 +296,18 @@ def divide_basin_4(folder, code, sink_num, island_num, threshold, stat_db_path, 
     :param sink_num:
     :param island_num:
     :param threshold:
-    :param stat_db_path:
-    :param sql_statement:
+
     :return:
     """
 
-    db_path = folder + r"\%s.db" % code
+    db_path = os.path.join(folder, code + ".db")
     # 读取流域出口信息、流域面积信息和内流区信息
     outlets, outlet_num, sinks, sink_num, islands, island_num, m_islands, m_island_num, i_sinks, i_sink_num = \
-        get_outlet_4(db_path, sink_num, island_num)
-    ul_offset = get_ul_offset(db_path)
+        dp.get_outlet_4(db_path, sink_num, island_num)
+    ul_offset = dp.get_ul_offset(db_path)
 
     # 读取栅格数据
-    dir_arr, upa_arr, elv_arr, geotransform, proj = read_tif_files(folder, code, 1)
+    dir_arr, upa_arr, elv_arr, geotransform, proj = raster.read_tif_files(folder, code, 1)
     # 流域划分
     basin, sub_num, b_types, b_areas, b_outlets, b_envelopes, other_outlets, outlet_merge_flag, other_sinks, \
         sink_merge_flag, m_island_merge_flag, island_merge_flag, i_sink_merge_flag = \
@@ -321,9 +315,9 @@ def divide_basin_4(folder, code, sink_num, island_num, threshold, stat_db_path, 
                  island_num, i_sinks, i_sink_num, threshold, dir_arr, upa_arr, elv_arr)
     # 裁剪流域
     result = break_into_sub_basins(basin, dir_arr, upa_arr, elv_arr, sub_num, b_types, b_areas, b_outlets, b_envelopes,
-                          outlet_merge_flag, other_outlets, sink_merge_flag, other_sinks, i_sink_merge_flag, i_sinks, island_merge_flag, islands,
-                          m_island_merge_flag, m_islands, ul_offset, geotransform, proj, threshold,
-                          code, folder, stat_db_path, sql_statement)
+                                   outlet_merge_flag, other_outlets, sink_merge_flag, other_sinks, i_sink_merge_flag, i_sinks,
+                                   island_merge_flag, islands, m_island_merge_flag, m_islands, ul_offset, geotransform, proj,
+                                   threshold, code, folder)
 
     return result
 
@@ -342,6 +336,7 @@ def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, isla
     :param island_num:
     :param i_sinks:
     :param i_sink_num:
+    :param min_threshold:
     :param dir_arr:
     :param upa_arr:
     :param elv_arr:
@@ -383,7 +378,7 @@ def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, isla
     all_edge = np.zeros(arr_shape, dtype=np.uint8)
     all_edge[dir_arr == 0] = 1
     # 对海陆边界进行四连通域分析
-    label_res, label_num = label(all_edge)
+    label_res, label_num = cfunc.label(all_edge)
     # 提取大陆边界对应的编码
     mainland_label = label_res[outlets[0][0], outlets[0][1]]
     # 建立大陆边界二值图像
@@ -398,12 +393,12 @@ def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, isla
 
 
     # 对打断后的大陆边界进行四连通域分析
-    mainland_label_res, mainland_label_num = label(mainland_edge)
+    mainland_label_res, mainland_label_num = cfunc.label(mainland_edge)
     temp_coded_num = di_outlet_num + mainland_label_num + di_sink_num + di_island_num
     island_edge = all_edge ^ mainland_edge
     del all_edge, mainland_edge
     gc.collect()
-    
+
 
     # 标记其余大陆外流出水口到流域图层，并更新流域信息
     basin += mainland_label_res.astype(np.uint8)
@@ -413,7 +408,7 @@ def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, isla
         code_idx += 1
     del mainland_label_res
     gc.collect()
-    
+
     # 将主要流域出水口标记到流域图层以及记录相关信息
     for i in range(di_outlet_num):
         outlet_ridx = outlets[i][0]
@@ -432,9 +427,9 @@ def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, isla
         other_outlets = None
     outlet_merge_flag = np.zeros((other_outlet_num, ), dtype=np.uint8)
     for i in range(other_outlet_num):
-        outlet_merge_flag[i] = basin[other_outlets[i][0], other_outlets[i][1]] 
- 
- 
+        outlet_merge_flag[i] = basin[other_outlets[i][0], other_outlets[i][1]]
+
+
     #########################################
     #                补充编码                #
     #########################################
@@ -457,10 +452,10 @@ def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, isla
     #########################################
     #        对大陆部分的流域进行流域追踪        #
     #########################################
-    re_dir_arr = calc_reverse_dir(dir_arr)
+    re_dir_arr = cfunc.calc_reverse_dir(dir_arr)
     # 先追踪已编码流域的范围
     outlet_idxs = np.argwhere(basin != 0)
-    paint_up_mosaiced_uint8(outlet_idxs, re_dir_arr, basin)
+    cfunc.paint_up_mosaiced_uint8(outlet_idxs, re_dir_arr, basin)
 
 
     # 再将剩余的内流区合并到编码流域内
@@ -476,12 +471,12 @@ def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, isla
             other_sink_idxs[i] = other_sinks[i][1] * cols + other_sinks[i][2]
         # 内流区数量少于245，使用unsigned char
         if other_sink_num < 245:
-            sink_merge_uint8(other_sink_idxs, re_dir_arr, elv_arr, basin)
+            cfunc.sink_merge_uint8(other_sink_idxs, re_dir_arr, elv_arr, basin)
         # 内流区数量大于245，使用unsigned short
         # 超过65525，则在开始时就抛出错误
         else:
             basin = basin.astype(np.uint16)
-            sink_merge_uint16(other_sink_idxs, re_dir_arr, elv_arr, basin)
+            cfunc.sink_merge_uint16(other_sink_idxs, re_dir_arr, elv_arr, basin)
             basin = basin.astype(np.uint8)
 
     # 记录大陆内流区的合并情况
@@ -497,11 +492,11 @@ def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, isla
     frac = 0.02
     ref_cell_area = 0.0081 if island_num <= 0 else islands[0][7]
     size_change_threshold = max(rows * cols * frac, min_threshold / ref_cell_area)
-    
+
     coded_islands_id = []
 
     # 提取大陆流域的外包矩形
-    get_basin_envelopes(basin, envelopes)
+    cfunc.get_basin_envelopes(basin, envelopes)
     # 已编码的岛屿，记录外包矩形范围，并标记
     for i in range(di_island_num):
         envelopes[code_idx, 0] = islands[i][8]
@@ -542,7 +537,7 @@ def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, isla
 
     # 将岛屿分配到最近的编码流域
     island_merge(islands, island_num, island_merge_flag, coded_islands_id, di_island_num, basin)
-    island_label_res, t_island_num = label(island_edge)
+    island_label_res, t_island_num = cfunc.label(island_edge)
     island_paint_flag = np.zeros((t_island_num + 1,), dtype=np.uint32)
     m_island_merge_flag = np.zeros((m_island_num,), dtype=np.uint8)
 
@@ -559,7 +554,7 @@ def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, isla
         update_envelope(envelopes[island_merge_flag[i]], islands[i][8:12])  # 更新流域外包矩形
 
     # 更新岛屿边界编码
-    update_island_label(island_label_res, island_paint_flag, t_island_num)
+    cfunc.update_island_label(island_label_res, island_paint_flag, t_island_num)
     island_label_res = island_label_res.astype(np.uint8)
 
     i_sink_merge_flag = np.zeros((i_sink_num,), dtype=np.uint8)
@@ -573,14 +568,12 @@ def divide_4(outlets, outlet_num, sinks, sink_num, m_islands, m_island_num, isla
     #      岛屿流域进行追踪,并合并到一个图层      #
     #########################################
     outlet_idxs = np.argwhere(island_label_res != 0)
-    paint_up_mosaiced_uint8(outlet_idxs, re_dir_arr, island_label_res)
+    cfunc.paint_up_mosaiced_uint8(outlet_idxs, re_dir_arr, island_label_res)
     basin += island_label_res
 
-
-
-    return basin, code_idx - 1, btype_list, barea_list, sub_outlet_idxs, envelopes, other_outlets, outlet_merge_flag, other_sinks, \
-        sink_merge_flag, m_island_merge_flag, island_merge_flag, i_sink_merge_flag
-
+    return basin, code_idx - 1, btype_list, barea_list, sub_outlet_idxs, envelopes, \
+        other_outlets, outlet_merge_flag, other_sinks, sink_merge_flag, \
+        m_island_merge_flag, island_merge_flag, i_sink_merge_flag
 
 
 def att_coding(outlets, outlet_num, sinks, sink_num, islands, island_num):
@@ -632,14 +625,13 @@ def att_coding(outlets, outlet_num, sinks, sink_num, islands, island_num):
 
 def sup_coding(temp_code_num, area_ths, sinks, di_sink_num, sink_num, islands, di_island_num, island_num):
 
-
     di_sink_area = di_island_area = 0.0
     while temp_code_num < 10:
         if di_sink_num >= sink_num and di_island_num >= island_num:
             return -1
         else:
             if di_sink_num < sink_num:
-                di_sink_area = sinks[di_sink_num][6]
+                di_sink_area = sinks[di_sink_num][5]
             else:
                 di_sink_area = 0.0
             if di_island_num < island_num:
@@ -660,7 +652,6 @@ def sup_coding(temp_code_num, area_ths, sinks, di_sink_num, sink_num, islands, d
 
 def island_merge(islands, island_num, island_merge_flag, coded_islands, di_island_num, basin_arr):
 
-
     # 如果没有编码岛屿，直接赋值到最邻近的大陆流域
     if di_island_num == 0:
         for i in range(island_num):
@@ -670,7 +661,6 @@ def island_merge(islands, island_num, island_merge_flag, coded_islands, di_islan
     else:
         max_dst = float(basin_arr.shape[0] + basin_arr.shape[1])
         min_dst_island = island_num
-
 
         for i in range(island_num):
             # 如果岛屿没有被编码，逐编码岛屿计算距离，保留最近的编码岛屿
@@ -720,16 +710,16 @@ def update_envelope(enve_a, enve_b):
     return 1
 
 
-def divide_basin_5(folder, code, sink_num, island_num, threshold, stat_db_path, sql_statement):
+def divide_basin_5(folder, code, sink_num, island_num, threshold):
 
 
     # 读取流域出口信息、流域面积信息和内流区信息
     db_path = os.path.join(folder, code + '.db')
-    total_area, islands, sinks = get_outlet_5(db_path, sink_num)
-    ul_offset = get_ul_offset(db_path)
+    total_area, islands, sinks = dp.get_outlet_5(db_path, sink_num)
+    ul_offset = dp.get_ul_offset(db_path)
 
     # 读取栅格数据
-    dir_arr, upa_arr, elv_arr, geotransform, proj = read_tif_files(folder, code, 1)
+    dir_arr, upa_arr, elv_arr, geotransform, proj = raster.read_tif_files(folder, code, 1)
 
     # 判断有没有需要打成大陆看待的大型岛屿
     first_island_area = islands[0][6]
@@ -766,9 +756,9 @@ def divide_basin_5(folder, code, sink_num, island_num, threshold, stat_db_path, 
 
     # 裁剪流域
     result = break_into_sub_basins(basin, dir_arr, upa_arr, elv_arr, sub_num, b_types, b_areas, b_outlets, b_envelopes,
-                          outlet_merge_flag, other_outlets, sink_merge_flag, sinks, i_sink_merge_flag, i_sinks,
-                          island_merge_flag, islands, m_island_merge_flag, m_islands, ul_offset, geotransform,
-                          proj, threshold, code, folder, stat_db_path, sql_statement)
+                                   outlet_merge_flag, other_outlets, sink_merge_flag, other_sinks, i_sink_merge_flag, i_sinks,
+                                   island_merge_flag, islands, m_island_merge_flag, m_islands, ul_offset, geotransform,
+                                   proj, threshold, code, folder)
 
     return result
 
@@ -824,7 +814,7 @@ def divide_5(islands, island_num, sinks, sink_num, min_threshold, dir_arr, code)
     frac = 0.02
     ref_cell_area = islands[0][7]
     size_change_threshold = max(min_threshold / ref_cell_area, rows * cols * frac)
-    
+
     change_env = np.zeros((island_num, 11), dtype=np.int64)
     for i in range(island_num):
         for j in range(1, code_idx):
@@ -857,7 +847,7 @@ def divide_5(islands, island_num, sinks, sink_num, min_threshold, dir_arr, code)
     # 对岛屿进行四连通域分析
     all_island_arr = np.zeros((rows, cols), dtype=np.uint8)
     all_island_arr[dir_arr != 247] = 1
-    island_label_res, island_label_num = label(all_island_arr)
+    island_label_res, island_label_num = cfunc.label(all_island_arr)
     # 四连通分类结果与数据库存储结果不一致，抛出错误
     if island_label_num != island_num:
         raise RuntimeError("The number of islands does not match in basin %s" % code)
@@ -867,7 +857,7 @@ def divide_5(islands, island_num, sinks, sink_num, min_threshold, dir_arr, code)
         island_paint_flag[island_label_res[islands[i][3:5]]] = island_merge_flag[i]
 
     # 生成流域划分结果
-    update_island_label(island_label_res, island_paint_flag, island_label_num)
+    cfunc.update_island_label(island_label_res, island_paint_flag, island_label_num)
     basin = island_label_res.astype(np.uint8)
 
     # 更新流域外包矩形
@@ -917,7 +907,7 @@ def prepare_4(dir_arr, upa_arr, islands, island_num, sinks, sink_num, threshold)
     # 找到主岛
     all_edge = np.zeros(dir_arr.shape, dtype=np.uint8)
     all_edge[dir_arr == 0] = 1
-    label_res, label_num = label(all_edge)
+    label_res, label_num = cfunc.label(all_edge)
     main_island_label = label_res[islands[0][3:5]]
     main_island_mask = label_res == main_island_label
     temp_upa = upa_arr.copy()
@@ -926,24 +916,23 @@ def prepare_4(dir_arr, upa_arr, islands, island_num, sinks, sink_num, threshold)
     outlet_idxs = np.argwhere(temp_upa > threshold)
     outlet_num = outlet_idxs.shape[0]
     # 对流域出水口面积进行排序
-    outlet_area = np.zeros((outlet_num), dtype=np.float32)
+    outlet_area = np.zeros((outlet_num, ), dtype=np.float32)
     for i in range(outlet_num):
-        outlet_area[i] = upa_arr[outlet_idxs[i, 0], outlet_idxs[i, 1]]    
+        outlet_area[i] = upa_arr[outlet_idxs[i, 0], outlet_idxs[i, 1]]
     outlet_sort = np.argsort(-outlet_area)
     # 生成主要出水口列表
     outlets = [(int(outlet_idxs[idx, 0]), int(outlet_idxs[idx, 1]), float(outlet_area[idx])) for idx in outlet_sort]
 
-    
     sp_idx = index.Index(interleaved=False)
     # 提取大陆边界上的主要外流区
-    idx_list = np.argwhere(main_island_mask == True)
+    idx_list = np.argwhere(main_island_mask == 1)
     mo_id = 1
     for loc_i, loc_j in idx_list:
         # 插入到R树中
         cor = (loc_j + 0.5, loc_j + 0.5, loc_i + 0.5, loc_i + 0.5)
         sp_idx.insert(mo_id, cor, obj=(loc_j, loc_i))
         mo_id += 1
-    
+
     # 重新提取岛屿
     other_islands = []
     for i in range(1, island_num):
@@ -952,14 +941,11 @@ def prepare_4(dir_arr, upa_arr, islands, island_num, sinks, sink_num, threshold)
         gc_cor = (temp[2], temp[2], temp[1], temp[1])
         nearest_j, nearest_i = list(sp_idx.nearest(gc_cor, objects="raw"))[0]
         nearest_dst = distance_2d((temp[2], temp[1]), (nearest_j, nearest_i)) - temp[5]
-        is_type = 1 if nearest_dst < 10 and temp[6] < 0.1 else 2
         temp[12] = float(nearest_dst)
         temp[13] = int(nearest_i)
         temp[14] = int(nearest_j)
-        temp[15] = is_type
         other_islands.append(tuple(temp))
-    
-    
+
     # 内流区列表
     m_sinks = []
     i_sinks = []
@@ -967,6 +953,8 @@ def prepare_4(dir_arr, upa_arr, islands, island_num, sinks, sink_num, threshold)
         sample_code = label_res[sinks[i][6:8]]
         if sample_code == main_island_label:
             temp = list(sinks[i])
+            temp[6] = None
+            temp[7] = None
             temp[8] = 1
             m_sinks.append(tuple(temp))
         else:
@@ -984,9 +972,8 @@ def distance_2d(cor_a, cor_b):
 
 
 def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_types, sub_areas, sub_outlets, sub_enves,
-                          outlet_merge_flag, outlets, sink_merge_flag, sinks, i_sink_merge_flag, i_sinks,
-                          island_merge_flag, islands, m_island_merge_flag, m_islands,
-                          ul_offset, bench_trans, proj, min_threshold, pre_code, path, stat_db_path, stat_sqline):
+                          outlet_merge_flag, outlets, sink_merge_flag, sinks, i_sink_merge_flag, i_sinks, island_merge_flag,
+                          islands, m_island_merge_flag, m_islands, ul_offset, bench_trans, proj, min_threshold, pre_code, path):
     """
 
     :param basin_arr:
@@ -1014,13 +1001,10 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
     :param min_threshold:
     :param pre_code:
     :param path:
-    :param stat_db_path:
-    :param stat_sqline:
     :return:
     """
 
     ins_val_list = []
-
 
     #########################################
     #           如果没有划分出子流域            #
@@ -1032,12 +1016,12 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
         if not os.path.exists(folder):
             os.mkdir(folder)  # 创建子流域目录
         # 复制流域文件
-        clone_basin(path, pre_code, folder, cur_code)
+        fp.clone_basin(path, pre_code, folder, cur_code)
 
         # 创建与汇总数据库的连接
         ins_val = (cur_code, int(sub_types[1]), float(sub_areas[1]), -1, -1, -1, 0)
         ins_val_list.append(ins_val)
-        
+
         return ins_val_list
 
     #########################################
@@ -1047,7 +1031,6 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
 
     # 准备下一层级流域划分需要的输入
     for i in range(1, sub_num + 1):
-
         """ 路径检查 """
         # 如果编码结果为10，则用0代替
         if i == 10:
@@ -1073,23 +1056,30 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
         ul_lon = bench_trans[0] + min_col * bench_trans[1]  # 左上角经度
         sub_geo_transform = (ul_lon, bench_trans[1], 0, ul_lat, 0, bench_trans[5])
 
-        # 栅格数据
+        """ 保存子流域栅格数据和矢量数据"""
+        # 子流域掩膜矩阵
         mask = basin_arr[min_row:max_row, min_col:max_col] != i
+        # 子流域流向栅格
         sub_dir_arr = dir_arr[min_row:max_row, min_col:max_col].copy()
-        sub_dir_arr[mask] = 247
-        array2tif(r'%s_dir.tif' % cur_code, sub_dir_arr, sub_geo_transform, proj, nd_value=247, dtype=1)
+        sub_dir_arr[mask] = raster.dir_nodata
+        raster.array2tif(r'%s_dir.tif' % cur_code, sub_dir_arr, sub_geo_transform, proj,
+                         nd_value=raster.dir_nodata, dtype=raster.OType.Byte)
+        # 子流域汇流累积量栅格
         sub_upa_arr = upa_arr[min_row:max_row, min_col:max_col].copy()
-        sub_upa_arr[mask] = -9999
-        array2tif(r'%s_upa.tif' % cur_code, sub_upa_arr, sub_geo_transform, proj, nd_value=247, dtype=6)
+        sub_upa_arr[mask] = raster.upa_nodata
+        raster.array2tif(r'%s_upa.tif' % cur_code, sub_upa_arr, sub_geo_transform, proj,
+                         nd_value=raster.upa_nodata, dtype=raster.OType.F32)
+        # 子流域高程栅格
         sub_elv_arr = elv_arr[min_row:max_row, min_col:max_col].copy()
-        sub_elv_arr[mask] = -9999
-        array2tif(r'%s_elv.tif' % cur_code, sub_elv_arr, sub_geo_transform, proj, nd_value=247, dtype=6)
-
+        sub_elv_arr[mask] = raster.elv_nodata
+        raster.array2tif(r'%s_elv.tif' % cur_code, sub_elv_arr, sub_geo_transform, proj,
+                         nd_value=raster.elv_nodata, dtype=raster.OType.F32)
         # 矢量数据
         bas_arr = np.ones((sub_rows, sub_cols), dtype=np.uint8)
         bas_arr[mask] = 0
         shp_path = "%s.shp" % cur_code
-        raster2shp_mem(shp_path, bas_arr, sub_geo_transform, proj, nd_value=0, dtype=1)
+        raster.raster2shp_mem(shp_path, bas_arr, sub_geo_transform, proj,
+                              nd_value=0, dtype=raster.OType.Byte)
 
         """
             一共有5张表格:
@@ -1105,21 +1095,20 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
             然后4
             最后5
         """
-
         # 创建数据库连接
         full_db_path = os.path.join(folder, "%s.db" % cur_code)
         conn = sqlite3.connect(full_db_path)
         cursor = conn.cursor()
 
         """ 地理参考表格"""
-        create_gt_table(conn)
+        dp.create_gt_table(conn)
         ins_val = (ul_lon, bench_trans[1], 0, ul_lat, 0, bench_trans[5], sub_rows, sub_cols,
                    ul_offset[0] + min_row, ul_offset[1] + min_col)
-        cursor.execute(gt_sql, ins_val)
+        cursor.execute(dp.gt_sql, ins_val)
         conn.commit()
 
         """ 流域属性表 """
-        create_bp_table(conn)
+        dp.create_bp_table(conn)
         bas_type = int(sub_types[i])
         bas_area = float(sub_areas[i])
         total_area = bas_area
@@ -1147,14 +1136,14 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
             merge_sink_num = merge_sink_ids.shape[0]
             total_sink_num = merge_sink_num
             if total_sink_num > 0:
-                create_sb_table(conn)  # 创建内流区表格
+                dp.create_sb_table(conn)  # 创建内流区表格
                 for sink_id in merge_sink_ids:
                     temp = list(sinks[sink_id[0]])
                     total_area += temp[5]  # 总面积加上合并的内流区的面积
                     temp[1] -= min_row  # 更改内流区最低点在矩阵中的行号
                     temp[2] -= min_col  # 更改内流区最低点在矩阵中的列号
                     ins_val = tuple(temp)  # 重新打包成元组
-                    cursor.execute(sb_sql, ins_val)
+                    cursor.execute(dp.sb_sql, ins_val)
                 conn.commit()
 
             divide_area = total_area
@@ -1172,13 +1161,13 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
             outlet_ids = np.argwhere(outlet_merge_flag == i)
             sub_outlet_num = outlet_ids.shape[0]
             if sub_outlet_num > 0:
-                create_mo_table(conn)
+                dp.create_mo_table(conn)
                 for outlet_id in outlet_ids:
                     temp = list(outlets[outlet_id[0]])
                     temp[0] -= min_row
                     temp[1] -= min_col
                     ins_val = tuple(temp)
-                    cursor.execute(mo_sql, ins_val)
+                    cursor.execute(dp.mo_sql, ins_val)
                 conn.commit()
 
             # 处理内流区信息
@@ -1188,7 +1177,7 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
             merge_i_sink_num = merge_i_sink_ids.shape[0]
             total_sink_num = merge_sink_num + merge_i_sink_num
             if total_sink_num > 0:
-                create_sb_table(conn)
+                dp.create_sb_table(conn)
 
             # 处理大陆内流区信息
             if merge_sink_num > 0:
@@ -1198,7 +1187,7 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
                     temp[1] -= min_row  # 更改内流区最低点在矩阵中的行号
                     temp[2] -= min_col  # 更改内流区最低点在矩阵中的列号
                     ins_val = tuple(temp)  # 重新打包成元组
-                    cursor.execute(sb_sql, ins_val)
+                    cursor.execute(dp.sb_sql, ins_val)
                 conn.commit()
 
             # 处理岛屿内流区信息
@@ -1210,7 +1199,7 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
                     temp[6] -= min_row  # 更改岛屿内流区对应岛屿样点的索引
                     temp[7] -= min_col
                     ins_val = tuple(temp)
-                    cursor.execute(is_sql, ins_val)
+                    cursor.execute(dp.sb_sql, ins_val)
                 conn.commit()
 
             # 处理岛屿信息
@@ -1220,7 +1209,7 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
             merge_m_island_num = merge_m_island_ids.shape[0]
             total_island_num = merge_island_num + merge_m_island_num
             if total_island_num > 0:
-                create_is_table(conn)
+                dp.create_is_table(conn)
 
             # 处理远海岛屿信息
             if merge_island_num > 0:
@@ -1238,7 +1227,7 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
                     temp[13] -= min_row
                     temp[14] -= min_col
                     ins_val = tuple(temp)
-                    cursor.execute(is_sql, ins_val)
+                    cursor.execute(dp.is_sql, ins_val)
                 conn.commit()
 
             # 处理大陆附属岛屿信息
@@ -1257,14 +1246,14 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
                     temp[13] -= min_row
                     temp[14] -= min_col
                     ins_val = tuple(temp)
-                    cursor.execute(is_sql, ins_val)
+                    cursor.execute(dp.is_sql, ins_val)
                 conn.commit()
 
             divide_area = total_area
             # 判断是否可以继续划分子流域
-            if sub_outlet_num < 1 :
+            if sub_outlet_num < 1:
                 divisibility = 0
-            
+
 
         ###############################
         #        5 岛屿和岛屿内流区      #
@@ -1279,7 +1268,7 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
                 raise RuntimeError("No island in basin %s, type 5!" % cur_code)
 
             ref_cell_area = islands[merge_island_ids[0][0]][7]
-            create_is_table(conn)
+            dp.create_is_table(conn)
             for island_id in merge_island_ids:
                 temp = list(islands[island_id[0]])
                 total_area += temp[6]
@@ -1294,7 +1283,7 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
                 temp[13] -= min_row
                 temp[14] -= min_col
                 ins_val = tuple(temp)
-                cursor.execute(is_sql, ins_val)
+                cursor.execute(dp.is_sql, ins_val)
             conn.commit()
 
             # 处理岛屿内流区信息
@@ -1302,7 +1291,7 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
             merge_i_sink_num = merge_i_sink_ids.shape[0]
             total_sink_num = merge_i_sink_num
             if total_sink_num > 0:
-                create_sb_table(conn)
+                dp.create_sb_table(conn)
                 for sink_id in merge_i_sink_ids:
                     temp = list(i_sinks[sink_id[0]])
                     temp[1] -= min_row  # 更改内流区最低点在矩阵中的行号
@@ -1310,7 +1299,7 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
                     temp[6] -= min_row  # 更改岛屿内流区对应岛屿样点的索引
                     temp[7] -= min_col
                     ins_val = tuple(temp)
-                    cursor.execute(is_sql, ins_val)
+                    cursor.execute(dp.sb_sql, ins_val)
                 conn.commit()
 
             divide_area = (sub_rows - 2) * (sub_cols - 2) * ref_cell_area
@@ -1327,12 +1316,11 @@ def break_into_sub_basins(basin_arr, dir_arr, upa_arr, elv_arr, sub_num, sub_typ
         # 向数据库中插入流域属性数据
         ins_val = (bas_type, bas_area, total_area, outlet_lon, outlet_lat,
                    outlet_loc_ridx, outlet_loc_cidx, total_sink_num, total_island_num)
-        cursor.execute(bp_sql, ins_val)
+        cursor.execute(dp.bp_sql, ins_val)
         conn.commit()
         conn.close()
 
         ins_val = (cur_code, bas_type, total_area, divide_area, total_sink_num, total_island_num, divisibility)
         ins_val_list.append(ins_val)
-        
+
     return ins_val_list
-    

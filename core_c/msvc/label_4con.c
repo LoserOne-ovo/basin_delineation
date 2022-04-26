@@ -32,7 +32,7 @@
 /// <param name="cols">二维矩阵列数</param>
 /// <param name="label_num">返回四连通区域标记数量</param>
 /// <returns>四连域标记结果</returns>
-unsigned int* _label_4con(unsigned char* bin_ima, int rows, int cols, unsigned int* label_num) {
+unsigned int* _label_4con(unsigned char* __restrict bin_ima, int rows, int cols, unsigned int* label_num) {
 
     // reference: https://www.cnblogs.com/ronny/p/img_aly_01.html
 
@@ -41,16 +41,16 @@ unsigned int* _label_4con(unsigned char* bin_ima, int rows, int cols, unsigned i
     // 初始化返回结果为0
     uint root_num = 0;
     uint64 total = rows * cols64;
-    uint* result = (unsigned int*)calloc(total, sizeof(unsigned int));
+    uint* __restrict result = (unsigned int*)calloc(total, sizeof(unsigned int));
     if (result == NULL) {
-        fprintf(stderr, "memory allocation failed!");
+        fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
         exit(-1);
     }
 
     tuple_row* tuple_list = (tuple_row*)calloc(rows, sizeof(tuple_row));
     // 为团列表分配内存
     if (tuple_list == NULL) {
-        fprintf(stderr, "memory allocation failed!");
+        fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
         exit(-1);
     }
     // 初始化
@@ -63,13 +63,13 @@ unsigned int* _label_4con(unsigned char* bin_ima, int rows, int cols, unsigned i
     // 初始化等价表，并分配内存
     equ_couple_list* ecList = (equ_couple_list*)malloc(sizeof(equ_couple_list));
     if (ecList == NULL) {
-        fprintf(stderr, "memory allocation failed!");
+        fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
         exit(-1);
     }
     ecList->length = 0;
     ecList->List = (equ_couple*)calloc(EC_SIZE, sizeof(equ_couple));
     if (ecList->List == NULL) {
-        fprintf(stderr, "memory allocation failed!");
+        fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
         exit(-1);
     }
     ecList->alloc_length = EC_SIZE;
@@ -213,14 +213,14 @@ unsigned int* _label_4con(unsigned char* bin_ima, int rows, int cols, unsigned i
 
     if (tuple_tag > 1) {
 
-        unsigned int* dissolved_tags = (unsigned int*)calloc(tuple_tag, sizeof(unsigned int));
+        unsigned int* __restrict dissolved_tags = (unsigned int*)calloc(tuple_tag, sizeof(unsigned int));
         if (dissolved_tags == NULL) {
-            fprintf(stderr, "memory allocation failed!");
+            fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
             exit(-1);
         }
-        unsigned int* solved_tags = (unsigned int*)calloc(tuple_tag, sizeof(unsigned int));
+        unsigned int* __restrict solved_tags = (unsigned int*)calloc(tuple_tag, sizeof(unsigned int));
         if (solved_tags == NULL) {
-            fprintf(stderr, "memory allocation failed!");
+            fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
             exit(-1);
         }
         unsigned int loc_tag, pre_tag, backup = 0;
@@ -314,7 +314,7 @@ void check_rList_alloc(tuple_row* rList) {
         uint new_size = rList->alloc_length + TUPLE_SIZE;
         con_tuple* tem_p = (con_tuple*)realloc(rList->List, new_size * sizeof(con_tuple));
         if (tem_p == NULL) {
-            fprintf(stderr, "memory reallocation failed!\r\n");
+            fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
             exit(-1);
         }
         else {
@@ -402,7 +402,7 @@ void add_ec(equ_couple_list* ecList, unsigned int tag_a, unsigned int tag_b) {
             uint new_size = ecList->alloc_length + EC_SIZE;
             equ_couple* tem_p = (equ_couple*)realloc(ecList->List, new_size * sizeof(equ_couple));
             if (tem_p == NULL) {
-                fprintf(stderr, "memory reallocation failed!\r\n");
+                fprintf(stderr, "memory allocation failed in %s at line %d!\r\n", __FILE__, __LINE__);
                 exit(-1);
             }
             else {
@@ -435,3 +435,6 @@ unsigned int min_uint(unsigned int a, unsigned int b) {
 unsigned int max_uint(unsigned int a, unsigned int b) {
     return a > b ? a : b;
 }
+
+
+

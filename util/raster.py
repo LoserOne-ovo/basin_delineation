@@ -1,9 +1,23 @@
 from osgeo import gdal, ogr, osr
 import os
+import math
 import numpy as np
 
 
 cm_tif_opt = ["COMPRESS=DEFLATE", "NUM_THREADS=8", "BIGTIFF=IF_SAFER"]
+dir_nodata = 247
+upa_nodata = -9999
+elv_nodata = -9999
+
+
+class OType:
+    Byte = 1
+    U16 = 2
+    I16 = 3
+    U32 = 4
+    I32 = 5
+    F32 = 6
+    F64 = 7
 
 
 def read_tif_files(folder, code, sink_num):
@@ -18,13 +32,11 @@ def read_tif_files(folder, code, sink_num):
     ds = gdal.Open(os.path.join(folder, code + '_upa.tif'))
     upa_arr = ds.ReadAsArray()
 
-    # 读取高程数据
-    # 读取高程数据
+    elv_arr = None
+    # 如果存在内流区，还需要读取高程数据
     if sink_num > 0:
         ds = gdal.Open(os.path.join(folder, code + '_elv.tif'))
         elv_arr = ds.ReadAsArray()
-    else:
-        elv_arr = None
 
     return dir_arr, upa_arr, elv_arr, geotransform, proj
 
@@ -70,6 +82,7 @@ def raster2shp(tif_path, shp_path):
     dst_layer.CreateField(fd)
 
     gdal.Polygonize(src_band, mask_band, dst_layer, 0)
+    shp_ds.Release()
 
 
 def raster2shp_mem(shp_path, array, geotransform, proj, nd_value, dtype):
@@ -91,9 +104,29 @@ def raster2shp_mem(shp_path, array, geotransform, proj, nd_value, dtype):
     dst_layer.CreateField(fd)
 
     gdal.Polygonize(outband, mask_band, dst_layer, 0)
-    outband = None
-    outDataSet = None
     shp_ds.Destroy()
+
+
+def raster2vector_mem(array, geotransform, proj, nd_value, dtype):
+
+    mem_raster_driver = gdal.GetDriverByName("MEM")
+    memDataSet = mem_raster_driver.Create("temp", array.shape[1], array.shape[0], 1, dtype)
+    memDataSet.SetGeoTransform(geotransform)
+    memDataSet.SetProjection(proj)
+    outband = memDataSet.GetRasterBand(1)
+    outband.WriteArray(array, 0, 0)
+    outband.SetNoDataValue(nd_value)
+    mask_band = outband.GetMaskBand()
+
+    mem_vector_dirver = ogr.GetDriverByName("MEMORY")
+    mem_vector_ds = mem_vector_dirver.CreateDataSource("temp")
+    dst_layer = mem_vector_ds.CreateLayer("1", srs=osr.SpatialReference(wkt=proj))
+    fd = ogr.FieldDefn("code", ogr.OFTInteger)
+    dst_layer.CreateField(fd)
+
+    gdal.Polygonize(outband, mask_band, dst_layer, 0)
+
+    return mem_vector_ds
 
 
 def mask_whole_basin(tif_path):
@@ -108,7 +141,12 @@ def mask_whole_basin(tif_path):
     return dir_arr, geotransform, proj
 
 
-def mask_whole_basin_for_lake(tif_path):
+def mask_whole_basin_int32(tif_path):
+    """
+
+    :param tif_path:
+    :return:
+    """
     ds = gdal.Open(tif_path)
     geotransform = ds.GetGeoTransform()
     proj = ds.GetProjection()
@@ -131,3 +169,28 @@ def read_single_tif(tif_path):
     tif_arr = ds.ReadAsArray()
 
     return tif_arr, geotransform, proj
+
+
+def cor2idx(lon, lat, gt):
+    """
+
+    :param lon:
+    :param lat:
+    :param gt:
+    :return:
+    """
+
+    return (math.floor((lat-gt[3])/gt[5]),
+            math.floor((lon-gt[0])/gt[1]))
+
+
+def cor2idx_list(cor_list, geotrans):
+    """
+
+    :param cor_list:
+    :param geotrans:
+    :return:
+    """
+
+    return [cor2idx(lon, lat, geotrans) for lon,lat in cor_list]
+
