@@ -4,11 +4,15 @@
 
 ​		Calculate the reverse d8 flow direction, which is crucial part of quick catchment delineation. Each bit represents whether there are upstream pixels in the corresponding direction.
 
-​		**Parameters:**    ***dir_arr**  :  np.ndarray (dim=2, dtype=np.uint8)*
+-   **Parameters:**
+
+- ***dir_arr**  :  np.ndarray (dim=2, dtype=np.uint8)*
 
 ​										d8 flow direction
 
-​		**Returns:**           ***re_dir_arr**  :  np.ndarray (dim=2, dtype=np.uint8)*
+-   **Returns:** 
+
+***re_dir_arr**  :  np.ndarray (dim=2, dtype=np.uint8)*
 
 ​										reversed d8 flow direction, share the same shape with dir_arr
 
