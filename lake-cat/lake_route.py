@@ -9,7 +9,7 @@ from osgeo import gdal, ogr, osr
 
 def get_route(lake_tif, dir_tif, upa_tif, out_path):
 
-    # 读取数据
+    # Read GeoTIFF data
     lake_arr, geotrans, proj = raster.read_single_tif(lake_tif)
     dir_arr, _, _ = raster.read_single_tif(dir_tif)
     upa_arr, _, _ = raster.read_single_tif(upa_tif)
@@ -18,10 +18,10 @@ def get_route(lake_tif, dir_tif, upa_tif, out_path):
     srs = osr.SpatialReference(wkt=proj)
     lake_num = np.max(lake_arr)
     
-    # 提取湖泊之间的流路
+    # Extract the flow path between lakes
     result, route_num = cfunc.create_route_between_lake_c(lake_arr, lake_num, dir_arr, upa_arr)
     
-    # 创建输出结果
+    # Create output shapefile
     driver = ogr.GetDriverByName("ESRI Shapefile")
     out_ds = driver.CreateDataSource(out_path)
     out_layer = out_ds.CreateLayer("route", srs=srs, geom_type=ogr.wkbLineString)
@@ -33,22 +33,24 @@ def get_route(lake_tif, dir_tif, upa_tif, out_path):
     
     offset = 0
     for i in range(route_num):
-        # 读取流路长度
+        # Get the length of current flow path
         route_length = int(result[offset + 2])
         offset += 3
-        # 生成Geometry
+        # Create linestring geometry for current flow path
         geometry = ogr.Geometry(ogr.wkbLineString)
         for j in range(route_length):
             idx_tuple = np.unravel_index(result[offset + j], img_shape)
-            pX = ul_x + (idx_tuple[1] + 0.5) * width # 经度
-            pY = ul_y + (idx_tuple[0] + 0.5) * height # 纬度
+            pX = ul_x + (idx_tuple[1] + 0.5) * width # longitude
+            pY = ul_y + (idx_tuple[0] + 0.5) * height # latitude
+            # Add point
             geometry.AddPoint(pX, pY)
-        # 设置feature属性
+        # Create feature for current flow path
         route_feature = ogr.Feature(featureDefn)
         route_feature.SetField("UpLake", int(result[offset + 0]))
         route_feature.SetField("DownLake", int(result[offset + 1]))
         route_feature.SetGeometry(geometry)
         out_layer.CreateFeature(route_feature)
+        # move to next flow path
         offset += route_length
 
     out_layer.SyncToDisk()
