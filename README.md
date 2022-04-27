@@ -2,11 +2,12 @@
 
 ## 1. Structure
 
-The code of this project is split into five different parts, which are "basin", "lake", "river", "core" and "util" respectively.
+This project provides three ways to delineate catchments based on DEM, which are organized in the following three folders:
+1) The "basin" folder: river-oriented catchment delineation without considering lakes or reservoirs (i.e. the usual way in digital terrain analysis);
+2) The "lake" folder: delineation of nested lake-catchments, including the delineation of full lake catchments and inter-lake catchments, the construction of topological relationship among lakes/lake-catchments, and the tracing of flow path among upstream and stream lakes. Rivers are not considered here.
+2) The "lake-cat" folder: catchment delineation considering both rivers and lakes/reservoirs. The discretized units include subbasins (with one channel in each subbasin), hillslopes (without river channel and usually adjacent to lakes or reservoirs), rivers, and lakes/reservoirs. The upstream and downstream relationships among these units are constructed.
 
-- The "basin", "lake" and "river" components are written in Python and designed to delineate hydrological units at different scales.
-- The "core" component is written in C and designed to finish raster calculation more efficiently. 
-- The “util” component is written in Python and designed to provide general geographic data operation interfaces which are called many times in this project. 
+Besides, the code in the "core" folder is written in C and designed to conduct raster calculation more efficiently; The code in the "util" folder is written in Python and designed to provide general geographic data operation interfaces which are called many times. 
 
 ## 2. Dependencies
 
@@ -18,7 +19,7 @@ The code of this project is split into five different parts, which are "basin", 
 
 ## 3. Data Requiremenmt
 
-- D8 Flow Direction Data (MERTI Hydro, reference: http://hydro.iis.u-tokyo.ac.jp/~yamadai/MERIT_Hydro/index.html)
+- D8 Flow Direction Data
 
   - datatype must be unsigned char
 
@@ -43,25 +44,3 @@ The code of this project is split into five different parts, which are "basin", 
     - 247 - nodata
 
     - 255 - inland depression
-
-## 4. Algorithm
-
-- Reversed D8 Flow Direction
-
-  To help track upslope pixels more efficiently, a reversed D8 flow direction array is calculated. If a pixel has value 69 (10000101), it means the east, south, northeast neighbor pixels are upslope pixels of the center pixel.
-
-- Delineate Upslope Catchment
-
-​		When delineating upslope catchments, a stack data structure is employed to accomplish depth-first traversal. While the stack is not empty, pop a pixel and mark it in the result layer, then push all its neighbor upslope pixels into the stack.
-
-​		The program supports delineate multi-catchments at one time. The format of outlets could be coordinate array or a raster layer. If there are hydrological connection between input outlets, you can choose not to cover the upslope catchment result. At this condition, you can get inter-lake catchment if the format of the input outlets is a lake raster layer. 
-
-​		Meanwhile, the stack could be reused when there are multi-catchments to be delineated, which reduces the consumption of memory alloction.
-
-- Topology between Lakes
-
-​		Along with the stream, find the direct downstream lakes of each lake and judge whether it is a terminal lake.
-
-- Route between Lakes
-
-​		When two lakes are hydrological-connected, build a flow path linestring along with the stream.

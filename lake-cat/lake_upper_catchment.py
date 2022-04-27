@@ -1,0 +1,215 @@
+import sys
+sys.path.append(r"../")
+import struct
+import sqlite3
+import numpy as np
+import networkx as nx
+from util import raster
+from util import interface as cfunc
+from osgeo import gdal, ogr, osr
+
+
+lake_topo_table_name = "lake_topo"
+
+
+def local_catchment(lake_tif, dir_tif, out_tif, out_shp):
+
+    dir_arr, geo_trans, proj = raster.read_single_tif(dir_tif)
+    lake_arr, _, _ = raster.read_single_tif(lake_tif)
+    max_lake_id = np.max(lake_arr)
+    
+    re_dir_arr = cfunc.calc_reverse_dir(dir_arr)
+    cfunc.paint_lake_local_catchment_int32_c(lake_arr, max_lake_id, re_dir_arr)
+    raster.array2tif(out_tif, lake_arr, geo_trans, proj, nd_value=0, dtype=raster.OType.I32)
+
+
+def polygonize_local_catchment(lake_lc_tif, out_shp):
+
+    # 读取栅格数据
+    lake_lc_ds = gdal.Open(lake_lc_tif)
+    proj = lake_lc_ds.GetProjection()
+    outband = lake_lc_ds.GetRasterBand(1)
+    mask_band = outband.GetMaskBand()
+    # 栅格矢量化
+    mem_vector_dirver = ogr.GetDriverByName("MEMORY")
+    mem_vector_ds = mem_vector_dirver.CreateDataSource("temp")
+    dst_layer = mem_vector_ds.CreateLayer("1", srs=osr.SpatialReference(wkt=proj))
+    fd = ogr.FieldDefn("Lake_ID", ogr.OFTInteger)
+    dst_layer.CreateField(fd)
+    gdal.Polygonize(outband, mask_band, dst_layer, 0)
+    
+    lake_num = 17300
+    # 创建新的shapfile
+    shp_driver = ogr.GetDriverByName("ESRI Shapefile")
+    out_ds = shp_driver.CreateDataSource(out_shp)
+    out_layer = out_ds.CreateLayer("lake_local_catchment", srs=osr.SpatialReference(wkt=proj), geom_type=ogr.wkbMultiPolygon)
+    out_layer.CreateField(fd)
+    featureDefn = out_layer.GetLayerDefn()
+    
+    # 筛选湖泊本地流域
+    for i in range(1, lake_num + 1):
+        if (i % 1000) == 0:
+            print(i)
+        new_geom = ogr.Geometry(ogr.wkbMultiPolygon)
+        dst_layer.SetAttributeFilter("Lake_ID=%d" % i)
+        for feature in dst_layer:
+            new_geom.AddGeometry(feature.GetGeometryRef())
+        if not new_geom.IsValid():
+            new_geom = new_geom.Buffer(0.0)
+        feature = ogr.Feature(featureDefn)
+        feature.SetGeometry(new_geom)
+        feature.SetField("Lake_ID", i)
+        out_layer.CreateFeature(feature)
+    
+    mem_vector_ds.Destroy()
+    out_layer.SyncToDisk()
+    out_ds.Destroy()
+    
+    
+def create_lake_topo_table(topo_db):
+
+    conn = sqlite3.connect(topo_db)
+    cursor = conn.cursor()
+    # 删除旧表
+    cursor.execute("DROP TABLE IF EXISTS %s;" % lake_topo_table_name)
+    # 创建新表
+    sql_line = """CREATE TABLE %s(
+        lake_id int PRIMARY KEY,
+        terminal tinyint,
+        down_lake_num smallint,
+        down_lakes blob
+    );""" % lake_topo_table_name
+    cursor.execute(sql_line)
+    conn.commit()
+    conn.close()
+    
+
+def insert_many_lake_topo_record(topo_db, ins_list):
+
+    sql_line = "INSERT INTO %s VALUES(?, ?, ?, ?);" % lake_topo_table_name
+    conn = sqlite3.connect(topo_db)
+    cursor = conn.cursor()
+    cursor.executemany(sql_line, ins_list)
+    conn.commit()
+    conn.close()
+    
+
+def map_lake_topo_record(down_lake_arr, down_lake_num, mapped_lake_id):
+
+    if down_lake_num == 0:
+        down_lake_list = None
+    else:
+        down_lake_list = struct.pack("%di" % down_lake_num, *down_lake_arr)
+    return (int(mapped_lake_id), None, int(down_lake_num), down_lake_list)
+
+
+def expand_topo(topo_arr, block_arr, lake_id_map):
+    
+    return [map_lake_topo_record(topo_arr[block_arr[i-1] : block_arr[i]], block_arr[i] - block_arr[i-1], lake_id_map[i]) if i > 0 \
+            else map_lake_topo_record(topo_arr[0: block_arr[0]], block_arr[0] - 0, lake_id_map[i]) \
+            for i in range(block_arr.shape[0])]
+    
+    
+def create_lake_topology(lake_tif, dir_tif, topo_db):
+    
+    # 计算湖泊之间的上下游关系
+    lake_lc_arr, geo_trans, proj = raster.read_single_tif(lake_tif)
+    dir_arr, _, _ = raster.read_single_tif(dir_tif)
+    lake_num = np.max(lake_lc_arr)
+    topo_arr, block_arr = cfunc.create_lake_topology_int32_c(lake_lc_arr, lake_num, dir_arr)
+    
+    # 将湖泊之间的上下游关系存入数据库
+    create_lake_topo_table(topo_db)
+    lake_id_map = np.arange(start=1, stop=lake_num+1, step=1, dtype=np.int32)
+    insert_list = expand_topo(topo_arr, block_arr, lake_id_map)
+    insert_many_lake_topo_record(topo_db, insert_list)
+    
+
+def analyze_lake_topo(topo_db):
+    
+    ########################
+    #  检查多个下游的情况  #
+    ########################
+    conn = sqlite3.connect(topo_db)
+    cursor = conn.cursor()
+    sql_line = "select lake_id, down_lake_num, down_lakes from %s where down_lake_num > 1;" % lake_topo_table_name
+    cursor.execute(sql_line)
+    result = cursor.fetchall()
+    result_num = len(result)
+    
+    # 检查内流湖
+    # 内流湖不能外流
+    for lake_id, down_lake_num, down_lakes in result:
+        lake_list = struct.unpack("%di" % down_lake_num, down_lakes)
+        if lake_id in lake_list or -1 in lake_list:
+            print(lake_id, lake_list)
+    
+    ############
+    #  检查环  #
+    ############
+    DG = nx.DiGraph()
+    for lake_id, down_lake_num, down_lakes_blob in result:
+        down_lakes = struct.unpack('%di' % down_lake_num, down_lakes_blob)
+        for down_lake_id in down_lakes:
+            if down_lake_id != -1 and down_lake_id != lake_id:
+                DG.add_edge(lake_id, down_lake_id)
+
+    print(nx.is_directed_acyclic_graph(DG))
+    cycles = nx.simple_cycles(DG)
+    for cycle in cycles:
+        print("cycle:", tuple(cycle))
+        for up_lake_id in cycle:
+            cursor.execute("select down_lake_num, down_lakes from %s where lake_id = %d" % (table_name, up_lake_id))
+            record = cursor.fetchone()
+            down_lakes = struct.unpack('%di' % record[0], record[1])
+            print("  %d: " % up_lake_id, down_lakes)
+    
+    conn.close()
+
+
+def union_lake_whole_catchment(lc_shp, out_shp, topo_db, lake_num):
+    """ To be updated. It will be better to use networkx."""
+    upper_lake_num_arr = np.zeros((lake_num + 1, ), dtype=np.uint16)
+    # 计算每个湖泊的上游数量
+    conn = sqlite3.connect(topo_db)
+    cursor = conn.cursor()
+    sql_line = "select lake_id, down_lake_num, down_lakes from %s where down_lake_num > 1;" % lake_topo_table_name
+    cursor.execute(sql_line)
+    result = cursor.fetchall()
+    
+    down_lake_dict = {}
+    # 构建上、下游湖泊字典，同时统计每个湖泊的上游湖泊数量
+    for lake_id, down_lake_num, down_lakes in result:
+        if down_lake_num > 0:
+            down_lake_tuple = struct.unpack("%di" % down_lake_num, down_lakes)
+            down_lake_list = list(down_lake_tuple)
+            down_lake_list.remove(-1)
+            down_lake_list.remove(lake_id)
+            for down_lake_id in down_lake_list:
+                upper_lake_num_arr[down_lake_id] += 1
+            down_lake_dict[lake_id] = down_lake_list
+        else:
+            down_lake_dict[lake_id] = []
+
+    processed_flag = np.zeros((lake_num + 1), dtype=np.uint16)
+    change_num = 1
+    while change_num > 0:
+        change_num = 0
+        for i in range(1, lake_num + 1):
+            # 只处理没有上游的湖泊
+            if processed_flag[i] == 0 and upper_lake_num_arr[i] == 0:
+                
+
+
+if __name__ == "__main__":
+
+    src_lake_tif = r""
+    src_dir_tif = r""
+    lc_lake_tif = r""
+    lc_lake_shp = r""
+    lake_topology_db = r""
+
+    # local_catchment(src_lake_tif, src_dir_tif, lc_lake_tif, lc_lake_shp)
+    # create_lake_topology(src_lake_tif, src_dir_tif, lake_topology_db)
+    # analyze_lake_topo(lake_topology_db)
+    # polygonize_local_catchment(lc_lake_tif, lc_lake_shp)
