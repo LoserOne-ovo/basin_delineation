@@ -1,15 +1,18 @@
 #ifndef _PFS_ORIGIN_H_
 #define _PFS_ORIGIN_H_
 
+#include <stdint.h>
+
 
 typedef struct {
 	float upa;
-	unsigned long long tri_idx;
-	unsigned long long tru_idx;
+	uint64_t tri_idx; // tributary
+	uint64_t tru_idx; // trunk stream
+	uint64_t nex_idx; // nexus
 }Tribu;
 
 
-int _tribu_insert(Tribu src[], float upa, unsigned long long tribu_idx, unsigned long long trunk_idx, float* min_upa, int* min_upa_probe);
+int32_t _tribu_insert(Tribu src[], float upa, uint64_t* node, float* min_upa, int32_t* min_upa_probe);
 
 
 #endif // !_PFS_ORIGIN_H_

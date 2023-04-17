@@ -1,40 +1,6 @@
 import sqlite3
 
 
-# 构建每个层级湖泊最小面积的字典
-lake_thre_dict = {
-    1: 100000.0,
-    2: 10000.0,
-    3: 3000.0,
-    4: 1000.0,
-    5: 300.0,
-    6: 100.0,
-    7: 30.0,
-    8: 10.0,
-    9: 3.0,
-    10: 3.0,
-    11: 1.0,
-    12: 1.0,
-}
-
-
-# 构建每个层级河网阈值的字典
-river_thre_dict = {
-    1: 300000.0,
-    2: 100000.0,
-    3: 30000.0,
-    4: 10000.0,
-    5: 3000.0,
-    6: 1000.0,
-    7: 500.0,
-    8: 250.0,
-    9: 100.0,
-    10: 50.0,
-    11: 25.0,
-    12: 10.0,
-}
-
-
 location_table = "lake_location"
 location_insert_sql = "INSERT INTO lake_location VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 bp_table_name = 'basin_property'
@@ -44,166 +10,36 @@ sb_table_name = 'sink_bottoms'
 is_table_name = 'islands'
 
 
-def get_lake_ths(level):
-    return lake_thre_dict[level]
-    
+class SubBasin:
+    def __init__(self, record):
+        self.code = record[0]
+        self.sub_code = record[1]
+        self.down_code = record[2]
+        self.down_sub_code = record[3]
+        self.down_lake = record[4]
+        self.btype = record[5]
+        self.outlet_lon = record[6]
+        self.outlet_lat = record[7]
+        self.status = record[8]
+        self.src_code = record[9]
 
-def get_river_ths(level):
-    return river_thre_dict[level]
-
-
-#######################
-#    流域属性信息查询    #
-#######################
-def get_ul_offset(db_path):
-
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("select ul_con_ridx, ul_con_cidx from geo_transform;")
-    result = cursor.fetchone()
-    conn.close()
-
-    return result
+    def export(self):
+        return (self.code, self.sub_code, self.down_code, self.down_sub_code, self.down_lake,
+                self.btype, self.outlet_lon, self.outlet_lat, self.status, self.src_code)
 
 
-def get_sub_basin_info(db_path, top_n_code, level):
-    """
-
-    :param db_path:
-    :param top_n_code:
-    :param level:
-    :return:
-    """
-
-    # 判断层级顺序是否正确
-    top_n_level = len(top_n_code)
-    if top_n_level >= level:
-        raise RuntimeError("top_n_level is lower than input level!")
-
-    table = "level_%d" % level
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("select code from %s where code like '%s';" % (table, top_n_code + "%"))
-    result = cursor.fetchall()
-    conn.close()
-
-    return result
+class Lake:
+    def __init__(self, record):
+        self.fid = record[0]
+        self.down_code = record[1]
+        self.down_sub_code = record[2]
+        self.btype = record[3]
+        self.outlet_lon = record[4]
+        self.outlet_lat = record[5]
+        self.lake_id = record[6]
 
 
-def get_basin_type(dbpath):
 
-    conn = sqlite3.connect(dbpath)
-    cursor = conn.cursor()
-    cursor.execute("select TYPE from %s;" % bp_table_name)
-    res = cursor.fetchone()
-    
-    if res is None:
-        raise Exception("table basin_property of database %s does not have attribute 'type'!" % dbpath)
-    basin_type = res[0]
-    if basin_type < 1 or basin_type > 5:
-        raise Exception("Unknown basin type in table basin_property of database %s!" % dbpath)
-
-    return basin_type
-
-
-##################
-#    预处理阶段    #
-##################
-def create_loc_table(db_path):
-    """
-    建立存储湖泊--流域位置信息的sqlite数据库
-    :param db_path:
-    :return:
-    """
-
-    table_name = location_table
-    db_conn = sqlite3.connect(db_path)
-    db_cursor = db_conn.cursor()
-    # 在数据库中建立湖泊对应流域的的表
-    db_cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='%s';" % table_name)
-    res = db_cursor.fetchone()
-    if res[0] == 0:
-        pass
-    elif res[0] == 1:
-        db_cursor.execute("DROP TABLE %s;" % table_name)
-    else:
-        raise Exception("wrong number of table %s in the database %s" % (table_name, db_path))
-
-    sqline = '''CREATE TABLE %s
-        (lake_id INTEGER NOT NULL,
-        lake_area REAL NOT NULL,
-        contain_lv INTEGER,
-        lv_1 CHAR(1),
-        lv_2 CHAR(2),
-        lv_3 CHAR(3),
-        lv_4 CHAR(4),
-        lv_5 CHAR(5),
-        lv_6 CHAR(6),
-        lv_7 CHAR(7),
-        lv_8 CHAR(8),
-        lv_9 CHAR(9),
-        lv_10 CHAR(10),
-        lv_11 CHAR(11),
-        lv_12 CHAR(12),
-        lv_13 CHAR(13),
-        lv_14 CHAR(14),
-        lv_15 CHAR(15));''' % table_name
-    db_cursor.execute(sqline)
-    db_conn.commit()
-    db_conn.close()
-
-
-def insert_location_info(db_path, ins_value):
-    """
-
-    :param db_path:
-    :param ins_value:
-    :return:
-    """
-    conn = sqlite3.connect(db_path, timeout=30)
-    cursor = conn.cursor()
-    cursor.execute(location_insert_sql, ins_value)
-    conn.commit()
-    conn.close()
-
-
-###############################
-#    挑选面积大于层级阈值的湖泊    #
-###############################
-def initialize_alter_db(alter_db, level_db, level):
-    """
-    创建数据库，用于记录哪些流域中有湖泊，进行了湖泊坡面的提取处理。哪些流域没有做湖泊处理。
-    :param alter_db:
-    :param level_db:
-    :param level:
-    :return:
-    """
-    # 查询当前层级所有流域
-    table_name = "level_%d" % level
-    conn = sqlite3.connect(level_db)
-    cursor = conn.cursor()
-    cursor.execute("select code from %s;" % table_name)
-    basin_ids = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    def map_basin(record):
-        return (record[0], 0)
-
-    # 初始化插入列表。先认为所有流域都不含湖泊
-    ins_val = [map_basin(rec) for rec in basin_ids]
-    create_alter_table(alter_db, level)
-    create_lake_alter_table(alter_db, level)
-    conn = sqlite3.connect(alter_db)
-    cursor = conn.cursor()
-    cursor.executemany("INSERT INTO %s VALUES (?, ?)" % table_name, ins_val)
-    conn.commit()
-    conn.close()
-
-
-##################################
-#    记录哪些流域做了湖泊坡面的处理    #
-##################################
 def create_alter_table(db_path, level):
     """
 
@@ -211,96 +47,97 @@ def create_alter_table(db_path, level):
     :param level:
     :return:
     """
+    # 子流域
     table_name = "level_%d" % level
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='%s';" % table_name)
-    res = cursor.fetchone()
-    if res[0] == 0:
-        pass
-    elif res[0] == 1:
-        cursor.execute("DROP TABLE %s;" % table_name)
-    else:
-        raise Exception("wrong number of table %s in the database %s" % (table_name, db_path))
-
+    cursor.execute("DROP TABLE IF EXISTS %s;" % table_name)
     sqline = '''CREATE TABLE %s
-        (code VARCHAR(15),
-        status SMALLINT);''' % table_name
+        (code UNSIGNED BIG INT,
+        sub_code INTEGER,
+        down_code BIG INT,
+        down_sub_code INTEGER,
+        down_lake INTEGER,
+        btype SMALLINT,
+        outlet_lon REAL,
+        outlet_lat REAL,
+        status TINYINT,
+        src_code UNSIGNED BIG INT);''' % table_name
     cursor.execute(sqline)
-    conn.commit()
-    conn.close()
 
-
-def create_lake_alter_table(db_path, level):
-    """
-    
-    :param db_path:
-    :param level:
-    :return:
-    """
+    # 湖泊
     table_name = "lake_level_%d" % level
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute("DROP TABLE IF EXISTS %s;" % table_name)
-    
     sqline = '''CREATE TABLE %s
-        (code VARCHAR(15),
-        lake_id INTEGER);''' % table_name
+        (fid INTEGER,
+        lake_id INTEGER,
+        down_code BIG INT,
+        down_sub_code INTEGER,
+        outlet_lon REAL,
+        outlet_lat REAL,
+        type TINYINT);''' % table_name
     cursor.execute(sqline)
+
     conn.commit()
     conn.close()
 
 
-def get_filter_lake_info(db_path, area_ths):
+def insert_basin_info(db_path, level, insert_val):
+
+    table_name = "level_%d" % level
+    insert_sql = "INSERT INTO %s VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" % table_name
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.executemany(insert_sql, insert_val)
+    conn.commit()
+    conn.close()
+
+
+def insert_lake_info(db_path, level, insert_val):
     """
 
     :param db_path:
-    :param area_ths:
+    :param level:
+    :param insert_val:
     :return:
     """
-    table_name = location_table
-    sql_line = "select * from %s where lake_area > %.4f and contain_lv > 1 order by lake_id;" % (table_name, area_ths)
+    table_name = "lake_level_%d" % level
+    insert_sql = "INSERT INTO %s VALUES(?, ?, ?, ?, ?, ?, ?);" % table_name
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.executemany(insert_sql, insert_val)
+    conn.commit()
+    conn.close()
+
+
+def get_basin_status(db_path, level):
+
+    table_name = "level_%d" % level
+    sql_line = "select * from %s where status>=0;" % table_name
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(sql_line)
     result = cursor.fetchall()
 
-    return result, len(result)
-
-
-def update_many_alter_status(db_path, level, update_val):
-    """
-
-    :param db_path:
-    :param level:
-    :param update_val:
-    :return:
-    """
-    table_name = "level_%d" % level
-    update_sql = "UPDATE %s SET status=? where code=?" % table_name
-    conn = sqlite3.connect(db_path, timeout=30)
-    cursor = conn.cursor()
-    cursor.executemany(update_sql, update_val)
-    conn.commit()
     conn.close()
+    return result
 
 
-def insert_lale_alter_info(db_path, level, insert_val):
-    """
+def get_lake_status(db_path, level):
 
-    :param db_path:
-    :param level:
-    :param update_val:
-    :return:
-    """
     table_name = "lake_level_%d" % level
-    insert_sql = "INSERT INTO %s VALUES(?, ?);" % table_name
-    conn = sqlite3.connect(db_path, timeout=30)
+    sql_line = "select * from %s;" % table_name
+
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.executemany(insert_sql, insert_val)
-    conn.commit()
+    cursor.execute(sql_line)
+    result = cursor.fetchall()
+
     conn.close()
+    return result
 
 
 ###############
@@ -337,8 +174,60 @@ def get_alter_lake_info(alter_db, level):
     return result
 
 
+#######################
+#    流域属性信息查询    #
+#######################
+def get_ul_offset(db_path):
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("select ul_con_ridx, ul_con_cidx, rows, cols from %s limit 1;" % gt_table_name)
+    result = cursor.fetchone()
+    conn.close()
+
+    return result
 
 
+def get_sub_basin_info(db_path, basin_code, sub_level):
+    """
+
+    :param db_path:
+    :param basin_code:
+    :param sub_level:
+    :return:
+    """
+
+    # 判断层级顺序是否正确
+
+    src_level = len(str(basin_code))
+    if src_level >= sub_level:
+        raise RuntimeError("level of input basin is lower than given sub-level!")
+
+    table = "level_%d" % sub_level
+
+    Lower_boundary = basin_code * 10 ** (sub_level - src_level)
+    Upper_boundary = (basin_code + 1) * 10 ** (sub_level - src_level)
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("select src_code, code, down_code, type, outlet_lon, outlet_lat, inlet_lon, inlet_lat from %s "
+                   "where code >= %d and code < %d;" %
+                   (table, Lower_boundary, Upper_boundary))
+    result = cursor.fetchall()
+    conn.close()
+
+    return result
 
 
+def get_mean_basin_area(db_path, level):
 
+    table_name = "level_%d" % level
+    sql_line = "select avg(area) from %s;" % table_name
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute(sql_line)
+    result = cursor.fetchone()
+
+    conn.close()
+    return result[0]
