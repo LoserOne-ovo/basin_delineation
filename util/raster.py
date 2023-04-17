@@ -264,3 +264,50 @@ def get_raster_extent(tif_path):
     geo_trans = ds.GetGeoTransform()
     proj = ds.GetProjection()
     return rows, cols, geo_trans, proj
+
+
+def read_tif_by_shape(fn, ul_ridx, ul_cidx, in_rows, in_cols):
+    """
+
+    :param fn:
+    :param ul_ridx:
+    :param ul_cidx:
+    :param in_rows:
+    :param in_cols:
+    :return:
+    """
+    if not os.path.exists(fn):
+        raise IOError("Input tif file %s not found!" % fn)
+
+    ds = gdal.Open(fn)
+    src_gt = ds.GetGeoTransform()
+    proj = ds.GetProjection()
+    rows = ds.RasterYSize
+    cols = ds.RasterXSize
+
+    # 计算范围对应的行列索引
+    dr_ridx = ul_ridx + in_rows
+    dr_cidx = ul_cidx + in_cols
+
+    flag = False
+    if ul_ridx < 0:
+        ul_ridx = 0
+        flag = True
+    if ul_cidx < 0:
+        ul_cidx = 0
+        flag = True
+    if dr_ridx >= rows:
+        dr_ridx = rows - 1
+        flag = True
+    if dr_cidx >= cols:
+        dr_cidx = cols - 1
+        flag = True
+    if flag is True:
+        raise Warning("input shape is lager than origin tif.")
+
+    band = ds.GetRasterBand(1)
+    nd_value = band.GetNoDataValue()
+    tif_arr = band.ReadAsArray(ul_cidx, ul_ridx, dr_cidx - ul_cidx, dr_ridx - ul_ridx)
+    tgt_gt = (src_gt[0] + ul_cidx * src_gt[1], src_gt[1], src_gt[2],
+              src_gt[3] + ul_ridx * src_gt[5], src_gt[4], src_gt[5])
+    return tif_arr, tgt_gt, proj, nd_value

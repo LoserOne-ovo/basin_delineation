@@ -776,3 +776,25 @@ def create_route_between_lake_c(lake_arr, lake_num, dir_arr, upa_arr):
     result_arr = np.frombuffer(arr_type.from_address(address), dtype=np.uint64)
 
     return result_arr, route_num.contents.value
+
+
+def check_outlet_on_mainstream(outlet_ridx, outlet_cidx, inlet_ridx, inlet_cidx, inlet_dir, dir_arr):
+    """
+
+    :param outlet_ridx:
+    :param outlet_cidx:
+    :param inlet_ridx:
+    :param inlet_cidx:
+    :param inlet_dir:
+    :param dir_arr:
+    :return:
+    """
+    rows, cols = dir_arr.shape
+    func = dll.check_on_mainstream
+
+    func.argtypes = [ctypes.c_int32, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32, ctypes.c_uint8,
+                     np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, shape=(rows, cols), flags='C_CONTIGUOUS'),
+                     ctypes.c_int32]
+    func.restype = ctypes.c_int32
+    flag = func(outlet_ridx, outlet_cidx, inlet_ridx, inlet_cidx, inlet_dir, dir_arr, cols)
+    return flag
